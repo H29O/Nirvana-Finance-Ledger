@@ -3,6 +3,7 @@ package com.heet.backend.service;
 import com.heet.backend.dto.request.CreateTransactionRequest;
 import com.heet.backend.dto.response.TransactionResponse;
 import com.heet.backend.entity.Transaction;
+import com.heet.backend.exception.TransactionNotFoundException;
 import com.heet.backend.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
 
@@ -33,17 +34,46 @@ public class TransactionService {
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
+        return mapToResponse(savedTransaction);
+    }
+
+    public TransactionResponse updateTransaction(Long id, CreateTransactionRequest request) {
+        Transaction transaction = findTransactionById(id);
+
+        transaction.setAmount(request.getAmount());
+        transaction.setTransactionType(request.getTransactionType());
+        transaction.setPaymentMethod(request.getPaymentMethod());
+        transaction.setEntrySource(request.getEntrySource());
+        transaction.setMerchant(request.getMerchant());
+        transaction.setNotes(request.getNotes());
+        transaction.setUpdatedAt(LocalDateTime.now());
+
+        Transaction savedTransaction = transactionRepository.save(transaction);
+        return mapToResponse(savedTransaction);
+    }
+
+    public void deleteTransaction(Long id) {
+        Transaction transaction = findTransactionById(id);
+        transactionRepository.delete(transaction);
+    }
+
+    private Transaction findTransactionById(Long id) {
+        return transactionRepository.findById(id)
+                .orElseThrow(() -> new TransactionNotFoundException(id));
+    }
+
+    private TransactionResponse mapToResponse(Transaction transaction) {
         return TransactionResponse.builder()
-                .id(savedTransaction.getId())
-                .amount(savedTransaction.getAmount())
-                .transactionType(savedTransaction.getTransactionType())
-                .paymentMethod(savedTransaction.getPaymentMethod())
-                .entrySource(savedTransaction.getEntrySource())
-                .transactionDate(savedTransaction.getTransactionDate())
-                .merchant(savedTransaction.getMerchant())
-                .notes(savedTransaction.getNotes())
-                .createdAt(savedTransaction.getCreatedAt())
-                .updatedAt(savedTransaction.getUpdatedAt())
+                .id(transaction.getId())
+                .amount(transaction.getAmount())
+                .transactionType(transaction.getTransactionType())
+                .paymentMethod(transaction.getPaymentMethod())
+                .entrySource(transaction.getEntrySource())
+                .transactionDate(transaction.getTransactionDate())
+                .merchant(transaction.getMerchant())
+                .notes(transaction.getNotes())
+                .createdAt(transaction.getCreatedAt())
+                .updatedAt(transaction.getUpdatedAt())
                 .build();
     }
 }
