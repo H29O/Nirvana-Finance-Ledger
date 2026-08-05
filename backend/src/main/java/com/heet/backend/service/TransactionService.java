@@ -1,6 +1,7 @@
 package com.heet.backend.service;
 
 import com.heet.backend.dto.request.CreateTransactionRequest;
+import com.heet.backend.dto.response.TransactionResponse;
 import com.heet.backend.entity.Transaction;
 import com.heet.backend.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class TransactionService {
         this.transactionRepository = transactionRepository;
     }
 
-    public Transaction createTransaction(CreateTransactionRequest request) {
+    public TransactionResponse createTransaction(CreateTransactionRequest request) {
         LocalDateTime now = LocalDateTime.now();
 
         Transaction transaction = new Transaction();
@@ -30,6 +31,19 @@ public class TransactionService {
         transaction.setCreatedAt(now);
         transaction.setUpdatedAt(now);
 
-        return transactionRepository.save(transaction);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+
+        return TransactionResponse.builder()
+                .id(savedTransaction.getId())
+                .amount(savedTransaction.getAmount())
+                .transactionType(savedTransaction.getTransactionType())
+                .paymentMethod(savedTransaction.getPaymentMethod())
+                .entrySource(savedTransaction.getEntrySource())
+                .transactionDate(savedTransaction.getTransactionDate())
+                .merchant(savedTransaction.getMerchant())
+                .notes(savedTransaction.getNotes())
+                .createdAt(savedTransaction.getCreatedAt())
+                .updatedAt(savedTransaction.getUpdatedAt())
+                .build();
     }
 }

@@ -1,8 +1,11 @@
 package com.heet.backend.controller;
 
 import com.heet.backend.dto.request.CreateTransactionRequest;
-import com.heet.backend.entity.Transaction;
+import com.heet.backend.dto.response.TransactionResponse;
 import com.heet.backend.service.TransactionService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +22,8 @@ public class TransactionController {
     }
 
     @PostMapping
-    public Transaction createTransaction(@RequestBody CreateTransactionRequest request) {
-        return transactionService.createTransaction(request);
+    public ResponseEntity<TransactionResponse> createTransaction(@Valid @RequestBody CreateTransactionRequest request) {
+        TransactionResponse response = transactionService.createTransaction(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
