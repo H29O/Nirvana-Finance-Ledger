@@ -35,4 +35,5 @@ public class CreateTransactionRequest {
     @NotBlank(message = "Merchant cannot be blank")
     private String merchant;
     private String notes;
+    private Long categoryId;
 }

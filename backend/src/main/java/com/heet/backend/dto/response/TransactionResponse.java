@@ -27,6 +27,8 @@ public class TransactionResponse {
     private LocalDateTime transactionDate;
     private String merchant;
     private String notes;
+    private Long categoryId;
+    private String categoryName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

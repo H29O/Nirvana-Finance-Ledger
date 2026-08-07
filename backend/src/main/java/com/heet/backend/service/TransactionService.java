@@ -2,15 +2,19 @@ package com.heet.backend.service;
 
 import com.heet.backend.dto.request.CreateTransactionRequest;
 import com.heet.backend.dto.response.TransactionResponse;
+import com.heet.backend.entity.Category;
 import com.heet.backend.entity.Transaction;
 import com.heet.backend.enums.PaymentMethod;
 import com.heet.backend.enums.TransactionType;
+import com.heet.backend.exception.CategoryNotFoundException;
 import com.heet.backend.exception.TransactionNotFoundException;
+import com.heet.backend.repository.CategoryRepository;
 import com.heet.backend.repository.TransactionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,11 +23,14 @@ import java.util.List;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
+    private final CategoryRepository categoryRepository;
 
-    public TransactionService(TransactionRepository transactionRepository) {
+    public TransactionService(TransactionRepository transactionRepository, CategoryRepository categoryRepository) {
         this.transactionRepository = transactionRepository;
+        this.categoryRepository = categoryRepository;
     }
 
+    @Transactional
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
         LocalDateTime now = LocalDateTime.now();
 
@@ -38,11 +45,14 @@ public class TransactionService {
         transaction.setCreatedAt(now);
         transaction.setUpdatedAt(now);
 
+        assignCategoryIfProvided(transaction, request.getCategoryId());
+
         Transaction savedTransaction = transactionRepository.save(transaction);
 
         return mapToResponse(savedTransaction);
     }
 
+    @Transactional
     public TransactionResponse updateTransaction(Long id, CreateTransactionRequest request) {
         Transaction transaction = findTransactionById(id);
 
@@ -54,15 +64,19 @@ public class TransactionService {
         transaction.setNotes(request.getNotes());
         transaction.setUpdatedAt(LocalDateTime.now());
 
+        assignCategoryIfProvided(transaction, request.getCategoryId());
+
         Transaction savedTransaction = transactionRepository.save(transaction);
         return mapToResponse(savedTransaction);
     }
 
+    @Transactional
     public void deleteTransaction(Long id) {
         Transaction transaction = findTransactionById(id);
         transactionRepository.delete(transaction);
     }
 
+    @Transactional(readOnly = true)
     public Page<TransactionResponse> getTransactions(
             TransactionType type,
             PaymentMethod paymentMethod,
@@ -85,6 +99,16 @@ public class TransactionService {
         return transactionRepository.findAll(pageable).map(this::mapToResponse);
     }
 
+    private void assignCategoryIfProvided(Transaction transaction, Long categoryId) {
+        if (categoryId != null) {
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+            transaction.setCategory(category);
+        } else {
+            transaction.setCategory(null);
+        }
+    }
+
     private Transaction findTransactionById(Long id) {
         return transactionRepository.findById(id)
                 .orElseThrow(() -> new TransactionNotFoundException(id));
@@ -102,6 +126,9 @@ public class TransactionService {
     }
 
     private TransactionResponse mapToResponse(Transaction transaction) {
+        Long categoryId = transaction.getCategory() != null ? transaction.getCategory().getId() : null;
+        String categoryName = transaction.getCategory() != null ? transaction.getCategory().getName() : null;
+
         return TransactionResponse.builder()
                 .id(transaction.getId())
                 .amount(transaction.getAmount())
@@ -111,6 +138,8 @@ public class TransactionService {
                 .transactionDate(transaction.getTransactionDate())
                 .merchant(transaction.getMerchant())
                 .notes(transaction.getNotes())
+                .categoryId(categoryId)
+                .categoryName(categoryName)
                 .createdAt(transaction.getCreatedAt())
                 .updatedAt(transaction.getUpdatedAt())
                 .build();

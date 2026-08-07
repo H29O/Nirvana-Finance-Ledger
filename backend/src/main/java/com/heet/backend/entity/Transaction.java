@@ -40,6 +40,10 @@ public class Transaction {
 
     private String notes;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

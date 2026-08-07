@@ -15,4 +15,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByPaymentMethod(PaymentMethod paymentMethod);
 
     List<Transaction> findByTransactionDateBetween(LocalDateTime start, LocalDateTime end);
+
+    boolean existsByCategoryId(Long categoryId);
 }
