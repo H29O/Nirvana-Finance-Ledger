@@ -3,11 +3,13 @@ package com.heet.backend.service;
 import com.heet.backend.dto.request.CategoryRequest;
 import com.heet.backend.dto.response.CategoryResponse;
 import com.heet.backend.entity.Category;
+import com.heet.backend.entity.User;
 import com.heet.backend.exception.CategoryInUseException;
 import com.heet.backend.exception.CategoryNotFoundException;
 import com.heet.backend.exception.DuplicateCategoryException;
 import com.heet.backend.repository.CategoryRepository;
 import com.heet.backend.repository.TransactionRepository;
+import com.heet.backend.security.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,16 +29,20 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse createCategory(CategoryRequest request) {
-        if (categoryRepository.existsByNameIgnoreCase(request.getName().trim())) {
-            throw new DuplicateCategoryException(request.getName().trim());
+        User user = SecurityUtils.getCurrentUser();
+        String name = request.getName().trim();
+
+        if (categoryRepository.existsByNameIgnoreCaseAndUserId(name, user.getId())) {
+            throw new DuplicateCategoryException(name);
         }
 
         Category category = new Category();
-        category.setName(request.getName().trim());
+        category.setName(name);
         category.setDescription(request.getDescription());
         category.setColor(request.getColor());
         category.setIcon(request.getIcon());
         category.setIsDefault(request.getIsDefault() != null ? request.getIsDefault() : false);
+        category.setUser(user);
 
         Category saved = categoryRepository.save(category);
         return mapToResponse(saved);
@@ -44,26 +50,29 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll().stream()
+        User user = SecurityUtils.getCurrentUser();
+        return categoryRepository.findByUserId(user.getId()).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(Long id) {
-        Category category = findCategoryById(id);
+        Category category = findCategoryByIdAndCurrentUser(id);
         return mapToResponse(category);
     }
 
     @Transactional
     public CategoryResponse updateCategory(Long id, CategoryRequest request) {
-        Category category = findCategoryById(id);
+        Category category = findCategoryByIdAndCurrentUser(id);
+        User user = SecurityUtils.getCurrentUser();
+        String name = request.getName().trim();
 
-        if (categoryRepository.existsByNameIgnoreCaseAndIdNot(request.getName().trim(), id)) {
-            throw new DuplicateCategoryException(request.getName().trim());
+        if (categoryRepository.existsByNameIgnoreCaseAndUserIdAndIdNot(name, user.getId(), id)) {
+            throw new DuplicateCategoryException(name);
         }
 
-        category.setName(request.getName().trim());
+        category.setName(name);
         category.setDescription(request.getDescription());
         category.setColor(request.getColor());
         category.setIcon(request.getIcon());
@@ -77,17 +86,19 @@ public class CategoryService {
 
     @Transactional
     public void deleteCategory(Long id) {
-        Category category = findCategoryById(id);
+        Category category = findCategoryByIdAndCurrentUser(id);
+        User user = SecurityUtils.getCurrentUser();
 
-        if (transactionRepository.existsByCategoryId(id)) {
+        if (transactionRepository.existsByCategoryIdAndUserId(id, user.getId())) {
             throw new CategoryInUseException(id);
         }
 
         categoryRepository.delete(category);
     }
 
-    private Category findCategoryById(Long id) {
-        return categoryRepository.findById(id)
+    private Category findCategoryByIdAndCurrentUser(Long id) {
+        User user = SecurityUtils.getCurrentUser();
+        return categoryRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new CategoryNotFoundException(id));
     }
 

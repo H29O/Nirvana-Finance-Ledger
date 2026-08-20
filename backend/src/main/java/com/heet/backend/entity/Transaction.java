@@ -44,6 +44,10 @@ public class Transaction {
     @JoinColumn(name = "category_id")
     private Category category;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

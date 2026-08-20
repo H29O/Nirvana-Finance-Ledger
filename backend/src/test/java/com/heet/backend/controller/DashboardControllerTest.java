@@ -17,7 +17,8 @@ import org.springframework.http.ResponseEntity;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,8 +53,6 @@ class DashboardControllerTest {
                 .totalIncome(BigDecimal.valueOf(5000))
                 .totalExpense(BigDecimal.valueOf(2000))
                 .balance(BigDecimal.valueOf(3000))
-                .incomePercentage(71.43)
-                .expensePercentage(28.57)
                 .build();
 
         topCategoryResponse = TopCategoryResponse.builder()
@@ -61,7 +60,6 @@ class DashboardControllerTest {
                 .categoryName("Food")
                 .totalAmount(BigDecimal.valueOf(500))
                 .transactionCount(5L)
-                .percentage(25.0)
                 .build();
     }
 

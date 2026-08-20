@@ -59,6 +59,22 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", exception.getMessage()));
     }
 
+    @ExceptionHandler(LoanRecordNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleLoanRecordNotFoundException(
+            LoanRecordNotFoundException exception) {
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidLoanPaymentException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidLoanPaymentException(
+            InvalidLoanPaymentException exception) {
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
     @ExceptionHandler(DuplicateCategoryException.class)
     public ResponseEntity<Map<String, String>> handleDuplicateCategoryException(
             DuplicateCategoryException exception) {
@@ -73,6 +89,22 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateEmailException(
+            DuplicateEmailException exception) {
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler({InvalidCredentialsException.class, org.springframework.security.authentication.BadCredentialsException.class})
+    public ResponseEntity<Map<String, String>> handleInvalidCredentialsException(
+            Exception exception) {
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "Invalid email or password"));
     }
 
     @ExceptionHandler(Exception.class)

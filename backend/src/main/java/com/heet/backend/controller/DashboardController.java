@@ -33,11 +33,9 @@ public class DashboardController {
 
         YearMonth yearMonth = resolveYearMonth(year, month);
 
-        MonthlySummaryResponse response =
-                dashboardService.getMonthlySummary(
-                        yearMonth.getYear(),
-                        yearMonth.getMonthValue()
-                );
+        MonthlySummaryResponse response = dashboardService.getMonthlySummary(
+                yearMonth.getYear(),
+                yearMonth.getMonthValue());
 
         return ResponseEntity.ok(response);
     }
@@ -49,11 +47,9 @@ public class DashboardController {
 
         YearMonth yearMonth = resolveYearMonth(year, month);
 
-        ExpenseByCategoryResponse response =
-                dashboardService.getExpenseByCategory(
-                        yearMonth.getYear(),
-                        yearMonth.getMonthValue()
-                );
+        ExpenseByCategoryResponse response = dashboardService.getExpenseByCategory(
+                yearMonth.getYear(),
+                yearMonth.getMonthValue());
 
         return ResponseEntity.ok(response);
     }
@@ -65,11 +61,9 @@ public class DashboardController {
 
         YearMonth yearMonth = resolveYearMonth(year, month);
 
-        IncomeExpenseResponse response =
-                dashboardService.getIncomeVsExpense(
-                        yearMonth.getYear(),
-                        yearMonth.getMonthValue()
-                );
+        IncomeExpenseResponse response = dashboardService.getIncomeVsExpense(
+                yearMonth.getYear(),
+                yearMonth.getMonthValue());
 
         return ResponseEntity.ok(response);
     }
@@ -82,12 +76,10 @@ public class DashboardController {
 
         YearMonth yearMonth = resolveYearMonth(year, month);
 
-        List<TopCategoryResponse> response =
-                dashboardService.getTopCategories(
-                        yearMonth.getYear(),
-                        yearMonth.getMonthValue(),
-                        limit
-                );
+        List<TopCategoryResponse> response = dashboardService.getTopCategories(
+                yearMonth.getYear(),
+                yearMonth.getMonthValue(),
+                limit);
 
         return ResponseEntity.ok(response);
     }
@@ -104,14 +96,12 @@ public class DashboardController {
 
         if (targetYear < 2000) {
             throw new IllegalArgumentException(
-                    "Year must be greater than or equal to 2000"
-            );
+                    "Year must be greater than or equal to 2000");
         }
 
         if (targetMonth < 1 || targetMonth > 12) {
             throw new IllegalArgumentException(
-                    "Month must be between 1 and 12"
-            );
+                    "Month must be between 1 and 12");
         }
 
         return YearMonth.of(targetYear, targetMonth);

@@ -4,20 +4,20 @@ import com.heet.backend.dto.request.CreateTransactionRequest;
 import com.heet.backend.dto.response.TransactionResponse;
 import com.heet.backend.entity.Category;
 import com.heet.backend.entity.Transaction;
+import com.heet.backend.entity.User;
 import com.heet.backend.enums.PaymentMethod;
 import com.heet.backend.enums.TransactionType;
 import com.heet.backend.exception.CategoryNotFoundException;
 import com.heet.backend.exception.TransactionNotFoundException;
 import com.heet.backend.repository.CategoryRepository;
 import com.heet.backend.repository.TransactionRepository;
+import com.heet.backend.security.SecurityUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 public class TransactionService {
@@ -32,9 +32,11 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
+        User user = SecurityUtils.getCurrentUser();
         LocalDateTime now = LocalDateTime.now();
 
         Transaction transaction = new Transaction();
+        transaction.setUser(user);
         transaction.setAmount(request.getAmount());
         transaction.setTransactionType(request.getTransactionType());
         transaction.setPaymentMethod(request.getPaymentMethod());
@@ -45,7 +47,7 @@ public class TransactionService {
         transaction.setCreatedAt(now);
         transaction.setUpdatedAt(now);
 
-        assignCategoryIfProvided(transaction, request.getCategoryId());
+        assignCategoryIfProvided(transaction, request.getCategoryId(), user.getId());
 
         Transaction savedTransaction = transactionRepository.save(transaction);
 
@@ -54,7 +56,8 @@ public class TransactionService {
 
     @Transactional
     public TransactionResponse updateTransaction(Long id, CreateTransactionRequest request) {
-        Transaction transaction = findTransactionById(id);
+        User user = SecurityUtils.getCurrentUser();
+        Transaction transaction = findTransactionByIdAndUser(id, user.getId());
 
         transaction.setAmount(request.getAmount());
         transaction.setTransactionType(request.getTransactionType());
@@ -64,7 +67,7 @@ public class TransactionService {
         transaction.setNotes(request.getNotes());
         transaction.setUpdatedAt(LocalDateTime.now());
 
-        assignCategoryIfProvided(transaction, request.getCategoryId());
+        assignCategoryIfProvided(transaction, request.getCategoryId(), user.getId());
 
         Transaction savedTransaction = transactionRepository.save(transaction);
         return mapToResponse(savedTransaction);
@@ -72,7 +75,8 @@ public class TransactionService {
 
     @Transactional
     public void deleteTransaction(Long id) {
-        Transaction transaction = findTransactionById(id);
+        User user = SecurityUtils.getCurrentUser();
+        Transaction transaction = findTransactionByIdAndUser(id, user.getId());
         transactionRepository.delete(transaction);
     }
 
@@ -84,24 +88,26 @@ public class TransactionService {
             LocalDateTime endDate,
             Pageable pageable) {
 
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        Page<Transaction> transactionsPage;
+
         if (type != null) {
-            return createPage(transactionRepository.findByTransactionType(type), pageable);
+            transactionsPage = transactionRepository.findByUserIdAndTransactionType(userId, type, pageable);
+        } else if (paymentMethod != null) {
+            transactionsPage = transactionRepository.findByUserIdAndPaymentMethod(userId, paymentMethod, pageable);
+        } else if (startDate != null && endDate != null) {
+            transactionsPage = transactionRepository.findByUserIdAndTransactionDateBetween(userId, startDate, endDate, pageable);
+        } else {
+            transactionsPage = transactionRepository.findByUserId(userId, pageable);
         }
 
-        if (paymentMethod != null) {
-            return createPage(transactionRepository.findByPaymentMethod(paymentMethod), pageable);
-        }
-
-        if (startDate != null && endDate != null) {
-            return createPage(transactionRepository.findByTransactionDateBetween(startDate, endDate), pageable);
-        }
-
-        return transactionRepository.findAll(pageable).map(this::mapToResponse);
+        return transactionsPage.map(this::mapToResponse);
     }
 
-    private void assignCategoryIfProvided(Transaction transaction, Long categoryId) {
+    private void assignCategoryIfProvided(Transaction transaction, Long categoryId, Long userId) {
         if (categoryId != null) {
-            Category category = categoryRepository.findById(categoryId)
+            Category category = categoryRepository.findByIdAndUserId(categoryId, userId)
                     .orElseThrow(() -> new CategoryNotFoundException(categoryId));
             transaction.setCategory(category);
         } else {
@@ -109,20 +115,9 @@ public class TransactionService {
         }
     }
 
-    private Transaction findTransactionById(Long id) {
-        return transactionRepository.findById(id)
+    private Transaction findTransactionByIdAndUser(Long id, Long userId) {
+        return transactionRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new TransactionNotFoundException(id));
-    }
-
-    private Page<TransactionResponse> createPage(List<Transaction> transactions, Pageable pageable) {
-        List<TransactionResponse> responses = transactions.stream()
-                .map(this::mapToResponse)
-                .toList();
-
-        int start = Math.toIntExact(Math.min(pageable.getOffset(), responses.size()));
-        int end = Math.min(start + pageable.getPageSize(), responses.size());
-
-        return new PageImpl<>(responses.subList(start, end), pageable, responses.size());
     }
 
     private TransactionResponse mapToResponse(Transaction transaction) {
