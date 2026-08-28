@@ -1,6 +1,7 @@
 package com.heet.backend.repository;
 
 import com.heet.backend.dto.projection.CategoryExpenseProjection;
+import com.heet.backend.dto.projection.MonthlyTypeSumProjection;
 import com.heet.backend.entity.Transaction;
 import com.heet.backend.enums.PaymentMethod;
 import com.heet.backend.enums.TransactionType;
@@ -72,6 +73,21 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable);
+
+    @Query("SELECT YEAR(t.transactionDate) AS year, " +
+           "MONTH(t.transactionDate) AS month, " +
+           "t.transactionType AS transactionType, " +
+           "SUM(t.amount) AS totalAmount " +
+           "FROM Transaction t " +
+           "WHERE t.user.id = :userId " +
+           "AND t.transactionType IN (com.heet.backend.enums.TransactionType.INCOME, com.heet.backend.enums.TransactionType.EXPENSE) " +
+           "AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY YEAR(t.transactionDate), MONTH(t.transactionDate), t.transactionType " +
+           "ORDER BY YEAR(t.transactionDate) ASC, MONTH(t.transactionDate) ASC")
+    List<MonthlyTypeSumProjection> findMonthlyTypeSumsByUserId(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
 
     @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate")
     BigDecimal sumAmountByTransactionTypeAndDateBetween(@Param("type") TransactionType type, @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
