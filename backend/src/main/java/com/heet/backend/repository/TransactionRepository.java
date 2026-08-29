@@ -1,7 +1,10 @@
 package com.heet.backend.repository;
 
 import com.heet.backend.dto.projection.CategoryExpenseProjection;
+import com.heet.backend.dto.projection.DailySpendProjection;
+import com.heet.backend.dto.projection.MerchantSpendProjection;
 import com.heet.backend.dto.projection.MonthlyTypeSumProjection;
+import com.heet.backend.dto.projection.PaymentMethodSumProjection;
 import com.heet.backend.entity.Transaction;
 import com.heet.backend.enums.PaymentMethod;
 import com.heet.backend.enums.TransactionType;
@@ -108,4 +111,88 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
            "GROUP BY c.id, c.name, c.color, c.icon " +
            "ORDER BY SUM(t.amount) DESC")
     List<CategoryExpenseProjection> findTopExpenseCategories(@Param("type") TransactionType type, @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate, Pageable pageable);
+
+    @Query("SELECT t.paymentMethod AS paymentMethod, SUM(t.amount) AS totalAmount, COUNT(t) AS transactionCount " +
+           "FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY t.paymentMethod")
+    List<PaymentMethodSumProjection> findPaymentMethodSumsByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT TRIM(t.merchant) AS merchant, SUM(t.amount) AS totalAmount, COUNT(t) AS transactionCount " +
+           "FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "AND t.merchant IS NOT NULL AND TRIM(t.merchant) <> '' " +
+           "GROUP BY TRIM(t.merchant) " +
+           "ORDER BY SUM(t.amount) DESC")
+    List<MerchantSpendProjection> findTopMerchantsByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    @Query("SELECT TRIM(t.merchant) AS merchant, SUM(t.amount) AS totalAmount, COUNT(t) AS transactionCount " +
+           "FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "AND t.merchant IS NOT NULL AND TRIM(t.merchant) <> '' " +
+           "GROUP BY TRIM(t.merchant) " +
+           "ORDER BY COUNT(t) DESC, SUM(t.amount) DESC")
+    List<MerchantSpendProjection> findMostFrequentMerchantsByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    @Query("SELECT COUNT(DISTINCT TRIM(t.merchant)) FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "AND t.merchant IS NOT NULL AND TRIM(t.merchant) <> ''")
+    Long countDistinctMerchantsByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT YEAR(t.transactionDate) AS year, MONTH(t.transactionDate) AS month, DAY(t.transactionDate) AS day, " +
+           "SUM(t.amount) AS totalAmount, COUNT(t) AS transactionCount " +
+           "FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate " +
+           "GROUP BY YEAR(t.transactionDate), MONTH(t.transactionDate), DAY(t.transactionDate) " +
+           "ORDER BY SUM(t.amount) DESC")
+    List<DailySpendProjection> findTopSpendingDaysByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    @Query("SELECT t FROM Transaction t LEFT JOIN FETCH t.category WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate ORDER BY t.amount DESC")
+    List<Transaction> findLargestExpenseTransactionsByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            Pageable pageable);
+
+    @Query("SELECT SUM(t.amount) FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate AND t.amount <= :threshold")
+    BigDecimal sumSmallPurchasesByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("threshold") BigDecimal threshold);
+
+    @Query("SELECT COUNT(t) FROM Transaction t " +
+           "WHERE t.user.id = :userId AND t.transactionType = :type AND t.transactionDate BETWEEN :startDate AND :endDate AND t.amount <= :threshold")
+    Long countSmallPurchasesByUserId(
+            @Param("userId") Long userId,
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("threshold") BigDecimal threshold);
 }

@@ -169,4 +169,34 @@ class ReceiptOcrServiceTest {
 
         assertThrows(ReceiptOcrNotFoundException.class, () -> receiptOcrService.getOcrData(10L));
     }
+
+    @Test
+    void processOcr_ReprocessFailedOcr_TransitionsToCompleted() {
+        ReceiptOcrData failedOcr = new ReceiptOcrData();
+        failedOcr.setId(100L);
+        failedOcr.setReceipt(sampleReceipt);
+        failedOcr.setUser(testUser);
+        failedOcr.setStatus(OcrStatus.FAILED);
+        failedOcr.setFailureReason("Previous connection timeout");
+
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.of(failedOcr));
+        when(receiptOcrDataRepository.save(any(ReceiptOcrData.class))).thenAnswer(i -> i.getArgument(0));
+
+        OcrResult retryResult = OcrResult.success(
+                "Kwality Dine\nTotal: $50.00\nDate: 2026-08-21",
+                "Kwality Dine",
+                new BigDecimal("50.00"),
+                LocalDate.of(2026, 8, 21)
+        );
+        when(ocrService.extractTextAndData(any(File.class), eq("image/jpeg"))).thenReturn(retryResult);
+
+        ReceiptOcrResponse response = receiptOcrService.processOcr(10L);
+
+        assertNotNull(response);
+        assertEquals(OcrStatus.COMPLETED, response.getStatus());
+        assertEquals("Kwality Dine", response.getDetectedMerchant());
+        assertEquals(new BigDecimal("50.00"), response.getDetectedAmount());
+        assertNull(response.getFailureReason());
+    }
 }

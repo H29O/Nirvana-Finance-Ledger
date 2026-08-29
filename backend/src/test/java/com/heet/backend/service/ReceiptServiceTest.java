@@ -290,4 +290,14 @@ class ReceiptServiceTest {
         verify(receiptStorageService, times(1)).deleteFile("uploads/receipts/1/uuid.pdf");
         verify(receiptRepository, times(1)).delete(sampleReceipt);
     }
+
+    @Test
+    void getReceiptFile_PhysicalFileMissingOnDisk_ThrowsFileStorageException() {
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptStorageService.loadFileAsResource("uploads/receipts/1/uuid.pdf"))
+                .thenThrow(new com.heet.backend.exception.FileStorageException("File not found on disk"));
+
+        assertThrows(com.heet.backend.exception.FileStorageException.class,
+                () -> receiptService.getReceiptFile(10L));
+    }
 }

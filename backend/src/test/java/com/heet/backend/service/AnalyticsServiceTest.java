@@ -278,6 +278,84 @@ class AnalyticsServiceTest {
     }
 
     @Test
+    void getPeriodComparison_JanuaryToPreviousDecember_CalculatesCorrectDateBoundaries() {
+        LocalDate startDate = LocalDate.of(2026, 1, 1);
+        LocalDate endDate = LocalDate.of(2026, 1, 31); // 31 days
+
+        // Current period: Jan 1 - Jan 31 -> Previous period: Dec 1, 2025 - Dec 31, 2025
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.INCOME),
+                eq(java.time.LocalDateTime.of(2026, 1, 1, 0, 0)),
+                eq(java.time.LocalDateTime.of(2026, 1, 31, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(5000));
+
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.EXPENSE),
+                eq(java.time.LocalDateTime.of(2026, 1, 1, 0, 0)),
+                eq(java.time.LocalDateTime.of(2026, 1, 31, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(2000));
+
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.INCOME),
+                eq(java.time.LocalDateTime.of(2025, 12, 1, 0, 0)),
+                eq(java.time.LocalDateTime.of(2025, 12, 31, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(4000));
+
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.EXPENSE),
+                eq(java.time.LocalDateTime.of(2025, 12, 1, 0, 0)),
+                eq(java.time.LocalDateTime.of(2025, 12, 31, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(1500));
+
+        PeriodComparisonResponse response = analyticsService.getPeriodComparison(startDate, endDate);
+
+        assertNotNull(response);
+        assertEquals(BigDecimal.valueOf(5000), response.getCurrentPeriod().getIncome());
+        assertEquals(BigDecimal.valueOf(2000), response.getCurrentPeriod().getExpense());
+        assertEquals(BigDecimal.valueOf(4000), response.getPreviousPeriod().getIncome());
+        assertEquals(BigDecimal.valueOf(1500), response.getPreviousPeriod().getExpense());
+    }
+
+    @Test
+    void getPeriodComparison_LeapYearFebruary29_CalculatesCorrectDays() {
+        LocalDate startDate = LocalDate.of(2024, 2, 1);
+        LocalDate endDate = LocalDate.of(2024, 2, 29); // 29 days in leap year 2024
+
+        // Previous 29 days ending Jan 31, 2024 -> Jan 3, 2024 - Jan 31, 2024
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.INCOME),
+                eq(java.time.LocalDateTime.of(2024, 2, 1, 0, 0)),
+                eq(java.time.LocalDateTime.of(2024, 2, 29, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(6000));
+
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.EXPENSE),
+                eq(java.time.LocalDateTime.of(2024, 2, 1, 0, 0)),
+                eq(java.time.LocalDateTime.of(2024, 2, 29, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(2900));
+
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.INCOME),
+                eq(java.time.LocalDateTime.of(2024, 1, 3, 0, 0)),
+                eq(java.time.LocalDateTime.of(2024, 1, 31, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(4500));
+
+        when(transactionRepository.sumAmountByUserIdAndTransactionTypeAndDateBetween(
+                eq(1L), eq(TransactionType.EXPENSE),
+                eq(java.time.LocalDateTime.of(2024, 1, 3, 0, 0)),
+                eq(java.time.LocalDateTime.of(2024, 1, 31, 23, 59, 59, 999999999))))
+                .thenReturn(BigDecimal.valueOf(2000));
+
+        PeriodComparisonResponse response = analyticsService.getPeriodComparison(startDate, endDate);
+
+        assertNotNull(response);
+        assertEquals(BigDecimal.valueOf(6000), response.getCurrentPeriod().getIncome());
+        assertEquals(BigDecimal.valueOf(2900), response.getCurrentPeriod().getExpense());
+        assertEquals(BigDecimal.valueOf(4500), response.getPreviousPeriod().getIncome());
+        assertEquals(BigDecimal.valueOf(2000), response.getPreviousPeriod().getExpense());
+    }
+
+    @Test
     void dateValidation_StartDateAfterEndDate_ThrowsIllegalArgumentException() {
         LocalDate startDate = LocalDate.of(2026, 5, 1);
         LocalDate endDate = LocalDate.of(2026, 4, 1);

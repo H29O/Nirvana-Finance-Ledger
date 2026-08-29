@@ -163,4 +163,113 @@ class TransactionServiceTest {
         assertEquals(10L, response.getCategoryId());
         assertEquals("Utilities", response.getCategoryName());
     }
+
+    @Test
+    void updateTransaction_NotFound_ThrowsTransactionNotFoundException() {
+        when(transactionRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(com.heet.backend.exception.TransactionNotFoundException.class,
+                () -> transactionService.updateTransaction(99L, requestWithCategory));
+    }
+
+    @Test
+    void deleteTransaction_Success() {
+        Transaction existing = new Transaction();
+        existing.setId(1L);
+        existing.setUser(testUser);
+
+        when(transactionRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+
+        transactionService.deleteTransaction(1L);
+
+        verify(transactionRepository, times(1)).delete(existing);
+    }
+
+    @Test
+    void deleteTransaction_NotFound_ThrowsTransactionNotFoundException() {
+        when(transactionRepository.findByIdAndUserId(99L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(com.heet.backend.exception.TransactionNotFoundException.class,
+                () -> transactionService.deleteTransaction(99L));
+    }
+
+    @Test
+    void getTransactions_FilterByType_DispatchesToRepository() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        Transaction sample = new Transaction();
+        sample.setId(1L);
+        sample.setTransactionType(TransactionType.EXPENSE);
+        sample.setUser(testUser);
+
+        org.springframework.data.domain.Page<Transaction> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(sample));
+        when(transactionRepository.findByUserIdAndTransactionType(1L, TransactionType.EXPENSE, pageable))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<TransactionResponse> result =
+                transactionService.getTransactions(TransactionType.EXPENSE, null, null, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(transactionRepository).findByUserIdAndTransactionType(1L, TransactionType.EXPENSE, pageable);
+    }
+
+    @Test
+    void getTransactions_FilterByPaymentMethod_DispatchesToRepository() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        Transaction sample = new Transaction();
+        sample.setId(1L);
+        sample.setPaymentMethod(PaymentMethod.DIGITAL);
+        sample.setUser(testUser);
+
+        org.springframework.data.domain.Page<Transaction> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(sample));
+        when(transactionRepository.findByUserIdAndPaymentMethod(1L, PaymentMethod.DIGITAL, pageable))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<TransactionResponse> result =
+                transactionService.getTransactions(null, PaymentMethod.DIGITAL, null, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(transactionRepository).findByUserIdAndPaymentMethod(1L, PaymentMethod.DIGITAL, pageable);
+    }
+
+    @Test
+    void getTransactions_FilterByDateRange_DispatchesToRepository() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        java.time.LocalDateTime start = java.time.LocalDateTime.of(2026, 8, 1, 0, 0);
+        java.time.LocalDateTime end = java.time.LocalDateTime.of(2026, 8, 31, 23, 59);
+
+        Transaction sample = new Transaction();
+        sample.setId(1L);
+        sample.setUser(testUser);
+
+        org.springframework.data.domain.Page<Transaction> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(sample));
+        when(transactionRepository.findByUserIdAndTransactionDateBetween(1L, start, end, pageable))
+                .thenReturn(page);
+
+        org.springframework.data.domain.Page<TransactionResponse> result =
+                transactionService.getTransactions(null, null, start, end, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(transactionRepository).findByUserIdAndTransactionDateBetween(1L, start, end, pageable);
+    }
+
+    @Test
+    void getTransactions_NoFilters_DispatchesToFindByUserId() {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 10);
+        Transaction sample = new Transaction();
+        sample.setId(1L);
+        sample.setUser(testUser);
+
+        org.springframework.data.domain.Page<Transaction> page = new org.springframework.data.domain.PageImpl<>(java.util.List.of(sample));
+        when(transactionRepository.findByUserId(1L, pageable)).thenReturn(page);
+
+        org.springframework.data.domain.Page<TransactionResponse> result =
+                transactionService.getTransactions(null, null, null, null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(transactionRepository).findByUserId(1L, pageable);
+    }
 }
