@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.heet.backend.repository.ReceiptRepository;
 import java.time.LocalDateTime;
 
 @Service
@@ -24,10 +25,15 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
+    private final ReceiptRepository receiptRepository;
 
-    public TransactionService(TransactionRepository transactionRepository, CategoryRepository categoryRepository) {
+    public TransactionService(
+            TransactionRepository transactionRepository,
+            CategoryRepository categoryRepository,
+            ReceiptRepository receiptRepository) {
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
+        this.receiptRepository = receiptRepository;
     }
 
     @Transactional
@@ -77,6 +83,14 @@ public class TransactionService {
     public void deleteTransaction(Long id) {
         User user = SecurityUtils.getCurrentUser();
         Transaction transaction = findTransactionByIdAndUser(id, user.getId());
+
+        // Safely unlink any receipt associated with this transaction before deletion
+        receiptRepository.findByTransactionIdAndUserId(id, user.getId())
+                .ifPresent(receipt -> {
+                    receipt.setTransaction(null);
+                    receiptRepository.save(receipt);
+                });
+
         transactionRepository.delete(transaction);
     }
 

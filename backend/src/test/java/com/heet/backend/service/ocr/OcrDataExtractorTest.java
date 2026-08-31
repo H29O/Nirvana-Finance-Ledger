@@ -33,6 +33,49 @@ class OcrDataExtractorTest {
     }
 
     @Test
+    void extractMerchant_WithNoisyTaxHeaderAndGst_ExtractsPharmacy() {
+        String receiptText = """
+                *STAX INVOICE* + GST No: 27AAAAA0000A1Z5
+                JAN SEWA PHARMACY
+                Plot 42, Civil Lines Road
+                Rx: Azithromycin
+                Net Payable: 450.00
+                """;
+
+        String merchant = extractor.extractMerchant(receiptText);
+        assertEquals("JAN SEWA PHARMACY", merchant);
+    }
+
+    @Test
+    void extractMerchant_WithGstinAndInvoiceNo_ExtractsBusinessName() {
+        String receiptText = """
+                GSTIN: 07ABCDE1234F1Z5
+                INVOICE NO: INV-2026-9812
+                DATE: 2026-08-30
+                APOLLO PHARMACEUTICALS LTD
+                Road No 3, Bangalore
+                Total Amount: 1,250.00
+                """;
+
+        String merchant = extractor.extractMerchant(receiptText);
+        assertEquals("APOLLO PHARMACEUTICALS LTD", merchant);
+    }
+
+    @Test
+    void extractMerchant_MigliorPharmaceuticals_ExtractsCleanMerchantName() {
+        String receiptText = """
+                TAX INVOICE
+                MIGLIOR PHARMACEUTICALS INDIA PVT.LTD
+                Plot No. 44, Industrial Area, Sector 5
+                GSTIN: 27AABCM1234F1Z9
+                DL.NO: 20B/21B-4589
+                """;
+
+        String merchant = extractor.extractMerchant(receiptText);
+        assertEquals("MIGLIOR PHARMACEUTICALS INDIA PVT.LTD", merchant);
+    }
+
+    @Test
     void extractMerchant_FirstLineIsStore() {
         String receiptText = """
                 Starbucks Coffee
@@ -62,6 +105,56 @@ class OcrDataExtractorTest {
 
         String receipt3 = "Item 1: 5.50\nAmount Due: 5.50";
         assertEquals(new BigDecimal("5.50"), extractor.extractAmount(receipt3));
+    }
+
+    @Test
+    void extractAmount_IndianFormats_IntegerAndCommas() {
+        String receipt1 = "Apollo Pharmacy\nItem 1: 200.00\nItem 2: 250.00\nNet Payable: ₹450";
+        assertEquals(new BigDecimal("450.00"), extractor.extractAmount(receipt1));
+
+        String receipt2 = "DMart Supermarket\nBill Total: ₹1,250.00";
+        assertEquals(new BigDecimal("1250.00"), extractor.extractAmount(receipt2));
+
+        String receipt3 = "Electricity Bill\nAmount Due: ₹1,250";
+        assertEquals(new BigDecimal("1250.00"), extractor.extractAmount(receipt3));
+
+        String receipt4 = "Jewellery Invoice\nGrand Total: ₹1,25,000.00";
+        assertEquals(new BigDecimal("125000.00"), extractor.extractAmount(receipt4));
+
+        String receipt5 = "Kirana Store\nNet Amount: 450\nThank You";
+        assertEquals(new BigDecimal("450.00"), extractor.extractAmount(receipt5));
+
+        String receipt6 = "Restaurant Bill\nFood: 750.00\nBill Total: 850.00";
+        assertEquals(new BigDecimal("850.00"), extractor.extractAmount(receipt6));
+
+        String receipt7 = "Medical Bill\nMRP: 500.00\nDiscount: 50.00\nAmount Payable : 450.00 /=";
+        assertEquals(new BigDecimal("450.00"), extractor.extractAmount(receipt7));
+    }
+
+    @Test
+    void extractAmount_PrioritizesNetPayableOverIndividualLineItems() {
+        String receipt = """
+                JAN SEWA PHARMACY
+                Item A: 120.00
+                Item B: 85.00
+                Item C: 245.00
+                Subtotal: 450.00
+                Round off: 0.00
+                Net Payable: 450.00
+                Thank you visit again
+                """;
+        assertEquals(new BigDecimal("450.00"), extractor.extractAmount(receipt));
+    }
+
+    @Test
+    void extractAmount_TableRowColumnAmount_ExtractsAmountFromItemRow() {
+        String receipt = """
+                MIGLIOR PHARMACEUTICALS INDIA PVT.LTD
+                Plot 44, Ind Area
+                QTY  RATE    AMOUNT
+                1    450.00  450.00
+                """;
+        assertEquals(new BigDecimal("450.00"), extractor.extractAmount(receipt));
     }
 
     @Test

@@ -1,15 +1,18 @@
 package com.heet.backend.service;
 
 import com.heet.backend.dto.response.ReceiptOcrResponse;
+import com.heet.backend.entity.Category;
 import com.heet.backend.entity.Receipt;
 import com.heet.backend.entity.ReceiptOcrData;
 import com.heet.backend.entity.User;
 import com.heet.backend.enums.OcrStatus;
 import com.heet.backend.exception.ReceiptNotFoundException;
 import com.heet.backend.exception.ReceiptOcrNotFoundException;
+import com.heet.backend.repository.CategoryRepository;
 import com.heet.backend.repository.ReceiptOcrDataRepository;
 import com.heet.backend.repository.ReceiptRepository;
 import com.heet.backend.security.SecurityUtils;
+import com.heet.backend.service.ocr.CategoryClassifier;
 import com.heet.backend.service.ocr.OcrResult;
 import com.heet.backend.service.ocr.OcrService;
 import org.springframework.stereotype.Service;
@@ -17,20 +20,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class ReceiptOcrService {
 
     private final ReceiptOcrDataRepository receiptOcrDataRepository;
     private final ReceiptRepository receiptRepository;
+    private final CategoryRepository categoryRepository;
+    private final CategoryClassifier categoryClassifier;
     private final OcrService ocrService;
 
     public ReceiptOcrService(
             ReceiptOcrDataRepository receiptOcrDataRepository,
             ReceiptRepository receiptRepository,
+            CategoryRepository categoryRepository,
+            CategoryClassifier categoryClassifier,
             OcrService ocrService) {
         this.receiptOcrDataRepository = receiptOcrDataRepository;
         this.receiptRepository = receiptRepository;
+        this.categoryRepository = categoryRepository;
+        this.categoryClassifier = categoryClassifier;
         this.ocrService = ocrService;
     }
 
@@ -66,12 +76,33 @@ public class ReceiptOcrService {
             ocrData.setDetectedDate(result.getDetectedDate());
             ocrData.setFailureReason(null);
             ocrData.setProcessedAt(LocalDateTime.now());
+
+            // Suggest category strictly from the authenticated user's own categories
+            List<Category> userCategories = categoryRepository.findByUserId(userId);
+            CategoryClassifier.CategorySuggestion suggestion = categoryClassifier.suggestCategory(
+                    result.getRawText(),
+                    result.getDetectedMerchant(),
+                    userCategories
+            );
+
+            if (suggestion != null) {
+                ocrData.setSuggestedCategoryId(suggestion.categoryId());
+                ocrData.setSuggestedCategoryName(suggestion.categoryName());
+                ocrData.setConfidenceScore(suggestion.confidence());
+            } else {
+                ocrData.setSuggestedCategoryId(null);
+                ocrData.setSuggestedCategoryName(null);
+                ocrData.setConfidenceScore(null);
+            }
         } else {
             ocrData.setStatus(OcrStatus.FAILED);
             ocrData.setRawText(null);
             ocrData.setDetectedMerchant(null);
             ocrData.setDetectedAmount(null);
             ocrData.setDetectedDate(null);
+            ocrData.setSuggestedCategoryId(null);
+            ocrData.setSuggestedCategoryName(null);
+            ocrData.setConfidenceScore(null);
             ocrData.setFailureReason(result.getFailureReason());
             ocrData.setProcessedAt(LocalDateTime.now());
         }
@@ -103,6 +134,9 @@ public class ReceiptOcrService {
                 .detectedMerchant(ocrData.getDetectedMerchant())
                 .detectedAmount(ocrData.getDetectedAmount())
                 .detectedDate(ocrData.getDetectedDate())
+                .suggestedCategoryId(ocrData.getSuggestedCategoryId())
+                .suggestedCategoryName(ocrData.getSuggestedCategoryName())
+                .confidenceScore(ocrData.getConfidenceScore())
                 .failureReason(ocrData.getFailureReason())
                 .processedAt(ocrData.getProcessedAt())
                 .createdAt(ocrData.getCreatedAt())

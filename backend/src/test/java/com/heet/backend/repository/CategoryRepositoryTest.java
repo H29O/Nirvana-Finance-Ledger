@@ -105,4 +105,43 @@ class CategoryRepositoryTest {
         Optional<Category> foundByUser2 = categoryRepository.findByIdAndUserId(cat1.getId(), user2.getId());
         assertFalse(foundByUser2.isPresent());
     }
+
+    @Test
+    void sameCategoryNameAllowedForDifferentUsers() {
+        String sharedCategoryName = "Shopping";
+
+        Category catUser1 = new Category();
+        catUser1.setName(sharedCategoryName);
+        catUser1.setUser(user1);
+        Category savedUser1 = categoryRepository.saveAndFlush(catUser1);
+
+        Category catUser2 = new Category();
+        catUser2.setName(sharedCategoryName);
+        catUser2.setUser(user2);
+        Category savedUser2 = categoryRepository.saveAndFlush(catUser2);
+
+        assertNotNull(savedUser1.getId());
+        assertNotNull(savedUser2.getId());
+        assertNotEquals(savedUser1.getId(), savedUser2.getId());
+        assertEquals(sharedCategoryName, savedUser1.getName());
+        assertEquals(sharedCategoryName, savedUser2.getName());
+    }
+
+    @Test
+    void duplicateCategoryNameRejectedForSameUser() {
+        String categoryName = "Shopping";
+
+        Category cat1 = new Category();
+        cat1.setName(categoryName);
+        cat1.setUser(user1);
+        categoryRepository.saveAndFlush(cat1);
+
+        Category cat2 = new Category();
+        cat2.setName(categoryName);
+        cat2.setUser(user1);
+
+        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> {
+            categoryRepository.saveAndFlush(cat2);
+        });
+    }
 }

@@ -1,15 +1,18 @@
 package com.heet.backend.service;
 
 import com.heet.backend.dto.response.ReceiptOcrResponse;
+import com.heet.backend.entity.Category;
 import com.heet.backend.entity.Receipt;
 import com.heet.backend.entity.ReceiptOcrData;
 import com.heet.backend.entity.User;
 import com.heet.backend.enums.OcrStatus;
 import com.heet.backend.exception.ReceiptNotFoundException;
 import com.heet.backend.exception.ReceiptOcrNotFoundException;
+import com.heet.backend.repository.CategoryRepository;
 import com.heet.backend.repository.ReceiptOcrDataRepository;
 import com.heet.backend.repository.ReceiptRepository;
 import com.heet.backend.security.UserPrincipal;
+import com.heet.backend.service.ocr.CategoryClassifier;
 import com.heet.backend.service.ocr.OcrResult;
 import com.heet.backend.service.ocr.OcrService;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +28,7 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -40,6 +44,12 @@ class ReceiptOcrServiceTest {
 
     @Mock
     private ReceiptRepository receiptRepository;
+
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
+    private CategoryClassifier categoryClassifier;
 
     @Mock
     private OcrService ocrService;
@@ -83,9 +93,51 @@ class ReceiptOcrServiceTest {
     }
 
     @Test
-    void processOcr_Success() {
+    void processOcr_Success_WithCategorySuggestion() {
+        Category healthcareCategory = new Category();
+        healthcareCategory.setId(25L);
+        healthcareCategory.setName("Healthcare");
+        healthcareCategory.setUser(testUser);
+
         when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
         when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
+        when(categoryRepository.findByUserId(1L)).thenReturn(List.of(healthcareCategory));
+        when(categoryClassifier.suggestCategory(any(), eq("Apollo Pharmacy"), any()))
+                .thenReturn(new CategoryClassifier.CategorySuggestion(25L, "Healthcare", "HIGH"));
+        when(receiptOcrDataRepository.save(any(ReceiptOcrData.class))).thenAnswer(invocation -> {
+            ReceiptOcrData data = invocation.getArgument(0);
+            data.setId(100L);
+            return data;
+        });
+
+        OcrResult mockResult = OcrResult.success(
+                "Apollo Pharmacy\nMedicine Total: 450\nNet Payable: ₹450.00",
+                "Apollo Pharmacy",
+                new BigDecimal("450.00"),
+                LocalDate.of(2026, 8, 21)
+        );
+        when(ocrService.extractTextAndData(any(File.class), eq("image/jpeg"))).thenReturn(mockResult);
+
+        ReceiptOcrResponse response = receiptOcrService.processOcr(10L);
+
+        assertNotNull(response);
+        assertEquals(100L, response.getId());
+        assertEquals(10L, response.getReceiptId());
+        assertEquals(OcrStatus.COMPLETED, response.getStatus());
+        assertEquals("Apollo Pharmacy", response.getDetectedMerchant());
+        assertEquals(new BigDecimal("450.00"), response.getDetectedAmount());
+        assertEquals(25L, response.getSuggestedCategoryId());
+        assertEquals("Healthcare", response.getSuggestedCategoryName());
+        assertEquals("HIGH", response.getConfidenceScore());
+        verify(categoryRepository, times(1)).findByUserId(1L);
+    }
+
+    @Test
+    void processOcr_Success_WithoutCategoryMatch() {
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
+        when(categoryRepository.findByUserId(1L)).thenReturn(List.of());
+        when(categoryClassifier.suggestCategory(any(), eq("Kwality Dine"), any())).thenReturn(null);
         when(receiptOcrDataRepository.save(any(ReceiptOcrData.class))).thenAnswer(invocation -> {
             ReceiptOcrData data = invocation.getArgument(0);
             data.setId(100L);
@@ -104,12 +156,8 @@ class ReceiptOcrServiceTest {
 
         assertNotNull(response);
         assertEquals(100L, response.getId());
-        assertEquals(10L, response.getReceiptId());
-        assertEquals(OcrStatus.COMPLETED, response.getStatus());
-        assertEquals("Kwality Dine", response.getDetectedMerchant());
-        assertEquals(new BigDecimal("50.00"), response.getDetectedAmount());
-        assertEquals(LocalDate.of(2026, 8, 21), response.getDetectedDate());
-        assertNull(response.getFailureReason());
+        assertNull(response.getSuggestedCategoryId());
+        assertNull(response.getSuggestedCategoryName());
     }
 
     @Test

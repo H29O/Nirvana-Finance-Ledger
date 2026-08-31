@@ -25,6 +25,9 @@ public class ReceiptOcrResponse {
     private String detectedMerchant;
     private BigDecimal detectedAmount;
     private LocalDate detectedDate;
+    private Long suggestedCategoryId;
+    private String suggestedCategoryName;
+    private String confidenceScore;
     private String failureReason;
     private LocalDateTime processedAt;
     private LocalDateTime createdAt;

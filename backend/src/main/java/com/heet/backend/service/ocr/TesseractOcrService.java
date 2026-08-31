@@ -7,6 +7,7 @@ import net.sourceforge.tess4j.TesseractException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,14 +19,17 @@ public class TesseractOcrService implements OcrService {
     private final String datapath;
     private final String language;
     private final OcrDataExtractor ocrDataExtractor;
+    private final ImagePreprocessor imagePreprocessor;
 
     public TesseractOcrService(
             @Value("${app.ocr.tesseract.datapath:tessdata}") String datapath,
             @Value("${app.ocr.tesseract.language:eng}") String language,
-            OcrDataExtractor ocrDataExtractor) {
+            OcrDataExtractor ocrDataExtractor,
+            ImagePreprocessor imagePreprocessor) {
         this.datapath = datapath;
         this.language = language;
         this.ocrDataExtractor = ocrDataExtractor;
+        this.imagePreprocessor = imagePreprocessor;
     }
 
     @Override
@@ -50,7 +54,14 @@ public class TesseractOcrService implements OcrService {
                 tesseract.setLanguage(language);
             }
 
-            String rawText = tesseract.doOCR(file);
+            // Preprocess image for enhanced sharpness and contrast
+            BufferedImage preprocessed = imagePreprocessor.preprocess(file);
+            String rawText = preprocessed != null ? tesseract.doOCR(preprocessed) : tesseract.doOCR(file);
+
+            if (rawText == null || rawText.isBlank()) {
+                // If preprocessed returned nothing, try raw file directly
+                rawText = tesseract.doOCR(file);
+            }
 
             if (rawText == null || rawText.isBlank()) {
                 return OcrResult.failure("No text could be extracted from image");

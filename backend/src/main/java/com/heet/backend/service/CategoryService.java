@@ -48,13 +48,56 @@ public class CategoryService {
         return mapToResponse(saved);
     }
 
-    @Transactional(readOnly = true)
+    private static final List<DefaultCategoryDefinition> DEFAULT_CATEGORIES = List.of(
+            new DefaultCategoryDefinition("Food & Dining", "Restaurants, cafes, takeaway, and dining out", "#f97316", "Utensils"),
+            new DefaultCategoryDefinition("Groceries", "Supermarket, provisions, daily produce, and staples", "#10b981", "ShoppingCart"),
+            new DefaultCategoryDefinition("Healthcare & Medical", "Medicines, consultations, pharmacy, and hospital bills", "#ef4444", "HeartPulse"),
+            new DefaultCategoryDefinition("Transportation", "Fuel, cabs, public transit, metro, and commute", "#3b82f6", "Car"),
+            new DefaultCategoryDefinition("Housing & Rent", "Rent, maintenance, home repairs, and housing dues", "#6366f1", "Home"),
+            new DefaultCategoryDefinition("Bills & Utilities", "Electricity, water, gas, broadband, and mobile recharge", "#eab308", "Zap"),
+            new DefaultCategoryDefinition("Shopping", "Retail purchases, electronics, gadgets, and general shopping", "#ec4899", "ShoppingBag"),
+            new DefaultCategoryDefinition("Clothing", "Apparel, footwear, fashion, and accessories", "#8b5cf6", "Shirt"),
+            new DefaultCategoryDefinition("Personal Care", "Grooming, salon, cosmetics, wellness, and self-care", "#14b8a6", "Sparkles"),
+            new DefaultCategoryDefinition("Entertainment", "Movies, events, recreational activities, and outings", "#a855f7", "Film"),
+            new DefaultCategoryDefinition("Education", "Courses, books, tuition, and learning materials", "#06b6d4", "GraduationCap"),
+            new DefaultCategoryDefinition("Travel", "Flights, hotels, holidays, and vacations", "#0ea5e9", "Plane"),
+            new DefaultCategoryDefinition("Subscriptions", "Recurring memberships, streaming, and SaaS subscriptions", "#f59e0b", "CalendarCheck"),
+            new DefaultCategoryDefinition("Other", "Miscellaneous expenses and uncategorized entries", "#64748b", "MoreHorizontal")
+    );
+
+    @Transactional
+    public void createDefaultCategoriesForUser(User user) {
+        if (user == null || user.getId() == null) {
+            return;
+        }
+
+        for (DefaultCategoryDefinition def : DEFAULT_CATEGORIES) {
+            if (!categoryRepository.existsByNameIgnoreCaseAndUserId(def.name(), user.getId())) {
+                Category cat = new Category();
+                cat.setName(def.name());
+                cat.setDescription(def.description());
+                cat.setColor(def.color());
+                cat.setIcon(def.icon());
+                cat.setIsDefault(true);
+                cat.setUser(user);
+                categoryRepository.save(cat);
+            }
+        }
+    }
+
+    @Transactional
     public List<CategoryResponse> getAllCategories() {
         User user = SecurityUtils.getCurrentUser();
-        return categoryRepository.findByUserId(user.getId()).stream()
+        // Ensure default categories are present for the user
+        createDefaultCategoriesForUser(user);
+
+        List<Category> userCategories = categoryRepository.findByUserId(user.getId());
+        return userCategories.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
+
+    private record DefaultCategoryDefinition(String name, String description, String color, String icon) {}
 
     @Transactional(readOnly = true)
     public CategoryResponse getCategoryById(Long id) {

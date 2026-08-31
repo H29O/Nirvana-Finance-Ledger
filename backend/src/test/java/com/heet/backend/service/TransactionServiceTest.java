@@ -44,6 +44,9 @@ class TransactionServiceTest {
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Mock
+    private com.heet.backend.repository.ReceiptRepository receiptRepository;
+
     @InjectMocks
     private TransactionService transactionService;
 
@@ -271,5 +274,40 @@ class TransactionServiceTest {
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
         verify(transactionRepository).findByUserId(1L, pageable);
+    }
+
+    @Test
+    void deleteTransaction_WithLinkedReceipt_UnlinksReceiptAndDeletes() {
+        Transaction sample = new Transaction();
+        sample.setId(10L);
+        sample.setUser(testUser);
+
+        com.heet.backend.entity.Receipt receipt = new com.heet.backend.entity.Receipt();
+        receipt.setId(100L);
+        receipt.setTransaction(sample);
+
+        when(transactionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sample));
+        when(receiptRepository.findByTransactionIdAndUserId(10L, 1L)).thenReturn(Optional.of(receipt));
+
+        transactionService.deleteTransaction(10L);
+
+        assertNull(receipt.getTransaction());
+        verify(receiptRepository).save(receipt);
+        verify(transactionRepository).delete(sample);
+    }
+
+    @Test
+    void deleteTransaction_WithoutLinkedReceipt_DeletesCleanly() {
+        Transaction sample = new Transaction();
+        sample.setId(10L);
+        sample.setUser(testUser);
+
+        when(transactionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sample));
+        when(receiptRepository.findByTransactionIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
+
+        transactionService.deleteTransaction(10L);
+
+        verify(receiptRepository, never()).save(any());
+        verify(transactionRepository).delete(sample);
     }
 }

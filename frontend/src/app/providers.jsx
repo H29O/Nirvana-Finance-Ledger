@@ -1,0 +1,15 @@
+import React from 'react';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '../features/auth/AuthContext';
+
+export function AppProviders({ children }) {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
+
+export default AppProviders;

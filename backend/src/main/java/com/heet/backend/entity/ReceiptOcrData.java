@@ -42,6 +42,12 @@ public class ReceiptOcrData {
 
     private LocalDate detectedDate;
 
+    private Long suggestedCategoryId;
+
+    private String suggestedCategoryName;
+
+    private String confidenceScore;
+
     private String failureReason;
 
     private LocalDateTime processedAt;

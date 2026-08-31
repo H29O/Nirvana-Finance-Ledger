@@ -1,0 +1,435 @@
+import React, { useState, useEffect } from 'react';
+import useAuth from '../../hooks/useAuth';
+import userService from '../../services/user.service';
+import PageHeader from '../../components/ui/PageHeader';
+import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import { formatDate } from '../../lib/formatters';
+import {
+  User,
+  Mail,
+  Calendar,
+  Shield,
+  IndianRupee,
+  Sun,
+  Download,
+  LogOut,
+  CheckCircle2,
+  AlertCircle,
+  Smartphone,
+  Layers,
+  Sparkles,
+  Key,
+} from 'lucide-react';
+
+export function SettingsPage() {
+  const { user: authUser, logout } = useAuth();
+
+  const [profile, setProfile] = useState(authUser);
+  const [isLoading, setIsLoading] = useState(!authUser);
+  const [error, setError] = useState('');
+
+  // PWA install state
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
+
+  // Logout modal state
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  // Load fresh user profile from backend /api/users/me
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchProfile() {
+      try {
+        const freshUser = await userService.getCurrentUser();
+        if (isMounted) {
+          setProfile(freshUser);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(
+            err.normalizedMessage || 'Failed to refresh user profile from server.'
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    fetchProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Listen for browser PWA beforeinstallprompt event
+  useEffect(() => {
+    // Check if running in standalone mode (already installed)
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true
+    ) {
+      setIsAppInstalled(true);
+    }
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+
+    setIsInstalling(true);
+    try {
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult.outcome === 'accepted') {
+        setIsAppInstalled(true);
+      }
+      setDeferredPrompt(null);
+    } catch (err) {
+      console.warn('PWA install prompt error', err);
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+
+  const handleConfirmLogout = () => {
+    setIsLogoutModalOpen(false);
+    logout();
+  };
+
+  const userInitial = profile?.name
+    ? profile.name.charAt(0).toUpperCase()
+    : 'U';
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto pb-16">
+      {/* Page Header */}
+      <PageHeader
+        title="Settings"
+        subtitle="Manage your account and app preferences."
+      />
+
+      {/* Global Error Banner */}
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setError('');
+              userService.getCurrentUser().then(setProfile).catch(() => {});
+            }}
+            className="text-xs border-rose-300 text-rose-700 hover:bg-rose-100"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {/* 1. Profile Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
+        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <User className="w-4 h-4 text-indigo-600" />
+              <span>User Profile</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Personal identity details registered with your ledger
+            </CardDescription>
+          </div>
+
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Active Account</span>
+          </span>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center gap-4 animate-pulse py-2">
+              <div className="w-16 h-16 rounded-2xl bg-slate-200" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-40 bg-slate-200 rounded" />
+                <div className="h-3 w-56 bg-slate-100 rounded" />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+              {/* Avatar Initial Badge */}
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-md shrink-0">
+                {userInitial}
+              </div>
+
+              {/* User Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 w-full text-xs">
+                <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    Full Name
+                  </span>
+                  <p className="text-sm font-bold text-slate-900">
+                    {profile?.name || '—'}
+                  </p>
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    Email Address
+                  </span>
+                  <p className="text-sm font-bold text-slate-900 truncate">
+                    {profile?.email || '—'}
+                  </p>
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    Member Since
+                  </span>
+                  <p className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 pt-0.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{profile?.createdAt ? formatDate(profile.createdAt) : '—'}</span>
+                  </p>
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    Account ID
+                  </span>
+                  <p className="text-xs font-semibold text-slate-700 font-mono pt-0.5">
+                    #{profile?.id ?? '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 2. Preferences Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
+        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-indigo-600" />
+              <span>App Preferences & Standards</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Configured ledger standards and presentation defaults
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0 space-y-4">
+          {/* Currency Preference */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
+                <IndianRupee className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">
+                  Primary Currency
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Default currency formatting applied to all ledger records and reports
+                </p>
+              </div>
+            </div>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-800 shadow-sm shrink-0 self-start sm:self-center font-tabular">
+              <span>Indian Rupee (₹ INR)</span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 3. PWA & Installation Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
+        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-indigo-600" />
+              <span>Progressive Web App (PWA)</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Offline caching and standalone device installation
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-bold text-slate-900">
+                  Device Application Status
+                </h4>
+                {isAppInstalled && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Standalone Installed
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 max-w-lg leading-relaxed">
+                Finance Ledger uses service workers to cache essential resources for offline performance and quick mobile startup.
+              </p>
+            </div>
+
+            {/* Install Button if browser triggered prompt */}
+            {deferredPrompt && !isAppInstalled && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleInstallApp}
+                isLoading={isInstalling}
+                className="text-xs flex items-center gap-1.5 shrink-0 shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>Install App</span>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. Security & Authentication Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
+        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-indigo-600" />
+              <span>Security & Session</span>
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500 mt-0.5">
+              Active authentication session and token integrity
+            </CardDescription>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-0 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+            <div className="space-y-1">
+              <h4 className="font-bold text-slate-900">
+                Session Authentication Mode
+              </h4>
+              <p className="text-[11px] text-slate-500">
+                Stateless JWT Bearer Token with automatic authorization header injection
+              </p>
+            </div>
+
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 self-start sm:self-center">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Authenticated</span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 5. Account Actions / Logout Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">
+              Account Session Actions
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Safely terminate your current session on this browser
+            </p>
+          </div>
+
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => setIsLogoutModalOpen(true)}
+            className="flex items-center gap-1.5 shadow-sm self-start sm:self-center"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Log Out</span>
+          </Button>
+        </div>
+      </Card>
+
+      {/* Logout Confirmation Modal */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsLogoutModalOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Modal Container */}
+          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 z-10 space-y-4 animate-scale-in">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Log Out of Ledger?
+                </h3>
+                <p className="text-xs text-slate-500">
+                  You will need to sign back in to access your records
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to log out from{' '}
+              <strong className="text-slate-900">{profile?.email || 'this session'}</strong>?
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleConfirmLogout}
+                className="text-xs"
+              >
+                Confirm Log Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default SettingsPage;

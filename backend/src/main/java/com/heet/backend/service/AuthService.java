@@ -20,14 +20,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final CategoryService categoryService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            JwtTokenProvider jwtTokenProvider) {
+            JwtTokenProvider jwtTokenProvider,
+            CategoryService categoryService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.categoryService = categoryService;
     }
 
     @Transactional
@@ -44,6 +47,9 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
         User savedUser = userRepository.save(user);
+
+        // Seed initial default categories for the new user account
+        categoryService.createDefaultCategoriesForUser(savedUser);
 
         String token = jwtTokenProvider.generateToken(savedUser.getEmail());
         return AuthResponse.builder()

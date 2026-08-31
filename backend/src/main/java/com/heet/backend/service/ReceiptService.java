@@ -8,6 +8,7 @@ import com.heet.backend.entity.User;
 import com.heet.backend.exception.InvalidReceiptException;
 import com.heet.backend.exception.ReceiptNotFoundException;
 import com.heet.backend.exception.TransactionNotFoundException;
+import com.heet.backend.repository.ReceiptOcrDataRepository;
 import com.heet.backend.repository.ReceiptRepository;
 import com.heet.backend.repository.TransactionRepository;
 import com.heet.backend.security.SecurityUtils;
@@ -41,14 +42,17 @@ public class ReceiptService {
     );
 
     private final ReceiptRepository receiptRepository;
+    private final ReceiptOcrDataRepository receiptOcrDataRepository;
     private final TransactionRepository transactionRepository;
     private final ReceiptStorageService receiptStorageService;
 
     public ReceiptService(
             ReceiptRepository receiptRepository,
+            ReceiptOcrDataRepository receiptOcrDataRepository,
             TransactionRepository transactionRepository,
             ReceiptStorageService receiptStorageService) {
         this.receiptRepository = receiptRepository;
+        this.receiptOcrDataRepository = receiptOcrDataRepository;
         this.transactionRepository = transactionRepository;
         this.receiptStorageService = receiptStorageService;
     }
@@ -151,6 +155,10 @@ public class ReceiptService {
 
         Receipt receipt = receiptRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ReceiptNotFoundException(id));
+
+        // Delete associated OCR data if present to maintain integrity and prevent foreign key violations
+        receiptOcrDataRepository.findByReceiptIdAndUserId(id, userId)
+                .ifPresent(receiptOcrDataRepository::delete);
 
         receiptStorageService.deleteFile(receipt.getStoragePath());
         receiptRepository.delete(receipt);

@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -143,5 +144,53 @@ class CategoryServiceTest {
 
         assertThrows(CategoryInUseException.class, () -> categoryService.deleteCategory(1L));
         verify(categoryRepository, never()).delete(any(Category.class));
+    }
+
+    @Test
+    void createDefaultCategoriesForUser_SeedsCategoriesWhenNoneExist() {
+        when(categoryRepository.existsByNameIgnoreCaseAndUserId(anyString(), eq(1L))).thenReturn(false);
+
+        categoryService.createDefaultCategoriesForUser(testUser);
+
+        verify(categoryRepository, times(14)).save(any(Category.class));
+    }
+
+    @Test
+    void createDefaultCategoriesForUser_DoesNotDuplicateExisting() {
+        when(categoryRepository.existsByNameIgnoreCaseAndUserId(eq("Food & Dining"), eq(1L))).thenReturn(true);
+        when(categoryRepository.existsByNameIgnoreCaseAndUserId(org.mockito.AdditionalMatchers.not(eq("Food & Dining")), eq(1L))).thenReturn(false);
+
+        categoryService.createDefaultCategoriesForUser(testUser);
+
+        verify(categoryRepository, times(13)).save(any(Category.class));
+    }
+
+    @Test
+    void getAllCategories_WhenUserHasNoCategories_AutoSeedsDefaults() {
+        when(categoryRepository.findByUserId(1L)).thenReturn(List.of(category));
+        when(categoryRepository.existsByNameIgnoreCaseAndUserId(anyString(), eq(1L))).thenReturn(false);
+
+        List<CategoryResponse> responses = categoryService.getAllCategories();
+
+        assertEquals(1, responses.size());
+        verify(categoryRepository, times(14)).save(any(Category.class));
+    }
+
+    @Test
+    void createDefaultCategoriesForUser_ExistingCustomCategoriesPreserved_OnlyMissingDefaultsAdded() {
+        // User already has Shopping (default) and Gym (custom)
+        when(categoryRepository.existsByNameIgnoreCaseAndUserId(eq("Shopping"), eq(1L))).thenReturn(true);
+        when(categoryRepository.existsByNameIgnoreCaseAndUserId(org.mockito.AdditionalMatchers.not(eq("Shopping")), eq(1L))).thenReturn(false);
+
+        categoryService.createDefaultCategoriesForUser(testUser);
+
+        // Exactly 13 missing default categories should be created, and custom categories remain intact
+        verify(categoryRepository, times(13)).save(any(Category.class));
+    }
+
+    @Test
+    void createDefaultCategoriesForUser_NullUser_DoesNothing() {
+        categoryService.createDefaultCategoriesForUser(null);
+        verify(categoryRepository, never()).save(any(Category.class));
     }
 }

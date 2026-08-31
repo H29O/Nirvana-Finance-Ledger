@@ -3,11 +3,14 @@ package com.heet.backend.service;
 import com.heet.backend.dto.response.ReceiptFileResource;
 import com.heet.backend.dto.response.ReceiptResponse;
 import com.heet.backend.entity.Receipt;
+import com.heet.backend.entity.ReceiptOcrData;
 import com.heet.backend.entity.Transaction;
 import com.heet.backend.entity.User;
+import com.heet.backend.enums.OcrStatus;
 import com.heet.backend.exception.InvalidReceiptException;
 import com.heet.backend.exception.ReceiptNotFoundException;
 import com.heet.backend.exception.TransactionNotFoundException;
+import com.heet.backend.repository.ReceiptOcrDataRepository;
 import com.heet.backend.repository.ReceiptRepository;
 import com.heet.backend.repository.TransactionRepository;
 import com.heet.backend.security.UserPrincipal;
@@ -41,6 +44,9 @@ class ReceiptServiceTest {
 
     @Mock
     private ReceiptRepository receiptRepository;
+
+    @Mock
+    private ReceiptOcrDataRepository receiptOcrDataRepository;
 
     @Mock
     private TransactionRepository transactionRepository;
@@ -282,13 +288,64 @@ class ReceiptServiceTest {
     }
 
     @Test
-    void deleteReceipt_Success() {
+    void deleteReceipt_WithoutOcrData_Success() {
         when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
 
         receiptService.deleteReceipt(10L);
 
+        verify(receiptOcrDataRepository, never()).delete(any());
         verify(receiptStorageService, times(1)).deleteFile("uploads/receipts/1/uuid.pdf");
         verify(receiptRepository, times(1)).delete(sampleReceipt);
+    }
+
+    @Test
+    void deleteReceipt_WithOcrData_Success() {
+        ReceiptOcrData ocrData = new ReceiptOcrData();
+        ocrData.setId(50L);
+        ocrData.setReceipt(sampleReceipt);
+        ocrData.setUser(testUser);
+        ocrData.setStatus(OcrStatus.COMPLETED);
+
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.of(ocrData));
+
+        receiptService.deleteReceipt(10L);
+
+        verify(receiptOcrDataRepository, times(1)).delete(ocrData);
+        verify(receiptStorageService, times(1)).deleteFile("uploads/receipts/1/uuid.pdf");
+        verify(receiptRepository, times(1)).delete(sampleReceipt);
+    }
+
+    @Test
+    void deleteReceipt_AnotherUser_ThrowsReceiptNotFoundException() {
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.empty());
+
+        assertThrows(ReceiptNotFoundException.class, () -> receiptService.deleteReceipt(10L));
+
+        verify(receiptOcrDataRepository, never()).delete(any());
+        verify(receiptStorageService, never()).deleteFile(any());
+        verify(receiptRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteReceipt_LinkedToTransaction_Success() {
+        sampleReceipt.setTransaction(testTransaction);
+        ReceiptOcrData ocrData = new ReceiptOcrData();
+        ocrData.setId(50L);
+        ocrData.setReceipt(sampleReceipt);
+        ocrData.setUser(testUser);
+        ocrData.setStatus(OcrStatus.COMPLETED);
+
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.of(ocrData));
+
+        receiptService.deleteReceipt(10L);
+
+        verify(receiptOcrDataRepository, times(1)).delete(ocrData);
+        verify(receiptStorageService, times(1)).deleteFile("uploads/receipts/1/uuid.pdf");
+        verify(receiptRepository, times(1)).delete(sampleReceipt);
+        verify(transactionRepository, never()).delete(any());
     }
 
     @Test
