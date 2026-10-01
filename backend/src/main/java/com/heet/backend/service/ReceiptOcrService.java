@@ -15,6 +15,7 @@ import com.heet.backend.security.SecurityUtils;
 import com.heet.backend.service.ocr.CategoryClassifier;
 import com.heet.backend.service.ocr.OcrResult;
 import com.heet.backend.service.ocr.OcrService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.io.File;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class ReceiptOcrService {
 
@@ -66,9 +68,19 @@ public class ReceiptOcrService {
         ocrData = receiptOcrDataRepository.save(ocrData);
 
         File file = new File(receipt.getStoragePath());
+        if (!file.exists()) {
+            File relativeFile = new File(System.getProperty("user.dir"), receipt.getStoragePath());
+            if (relativeFile.exists()) {
+                file = relativeFile;
+            }
+        }
+
+        log.info("Starting OCR processing for receipt id {} (file: '{}')", receiptId, file.getAbsolutePath());
         OcrResult result = ocrService.extractTextAndData(file, receipt.getContentType());
 
         if (result.isSuccess()) {
+            log.info("OCR completed successfully for receipt id {}: merchant='{}', amount='{}', date='{}'",
+                    receiptId, result.getDetectedMerchant(), result.getDetectedAmount(), result.getDetectedDate());
             ocrData.setStatus(OcrStatus.COMPLETED);
             ocrData.setRawText(result.getRawText());
             ocrData.setDetectedMerchant(result.getDetectedMerchant());
@@ -95,6 +107,7 @@ public class ReceiptOcrService {
                 ocrData.setConfidenceScore(null);
             }
         } else {
+            log.warn("OCR failed for receipt id {}: reason='{}'", receiptId, result.getFailureReason());
             ocrData.setStatus(OcrStatus.FAILED);
             ocrData.setRawText(null);
             ocrData.setDetectedMerchant(null);

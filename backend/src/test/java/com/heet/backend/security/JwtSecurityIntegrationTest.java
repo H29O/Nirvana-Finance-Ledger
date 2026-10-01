@@ -4,12 +4,14 @@ import com.heet.backend.entity.User;
 import com.heet.backend.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -54,6 +56,7 @@ class JwtSecurityIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        SecurityContextHolder.clearContext();
         mockMvc = MockMvcBuilders
                 .webAppContextSetup(webApplicationContext)
                 .apply(springSecurity())
@@ -73,6 +76,11 @@ class JwtSecurityIntegrationTest {
 
         validTokenUser1 = jwtTokenProvider.generateToken(testUser1.getEmail());
         validTokenUser2 = jwtTokenProvider.generateToken(testUser2.getEmail());
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test

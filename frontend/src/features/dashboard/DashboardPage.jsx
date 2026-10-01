@@ -134,6 +134,8 @@ export function DashboardPage() {
     (monthlySummary?.totalTransactions ?? 0) === 0 &&
     (monthlySummary?.totalIncome ?? 0) === 0 &&
     (monthlySummary?.totalExpense ?? 0) === 0 &&
+    (monthlySummary?.totalLent ?? 0) === 0 &&
+    (monthlySummary?.totalDebt ?? 0) === 0 &&
     (expenseByCategory?.categories?.length ?? 0) === 0;
 
   return (

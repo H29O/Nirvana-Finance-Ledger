@@ -8,7 +8,7 @@ export function ExpenseCategoryBreakdown({ data, incomeVsExpense }) {
   const categories = data?.categories || [];
 
   const totalIncome = incomeVsExpense?.totalIncome ?? 0;
-  const netBalance = incomeVsExpense?.balance ?? (totalIncome - totalExpense);
+  const netBalance = incomeVsExpense?.balance ?? (totalIncome - totalExpense + (incomeVsExpense?.totalDebt ?? 0) - (incomeVsExpense?.totalLent ?? 0));
 
   // Income vs expense ratio
   const maxCashflow = Math.max(totalIncome, totalExpense, 1);

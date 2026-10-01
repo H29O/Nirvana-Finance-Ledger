@@ -6,7 +6,9 @@ import { TrendingUp, TrendingDown, PiggyBank, ReceiptText } from 'lucide-react';
 export function DashboardMetrics({ summary }) {
   const totalIncome = summary?.totalIncome ?? 0;
   const totalExpense = summary?.totalExpense ?? 0;
-  const netSavings = summary?.netSavings ?? (totalIncome - totalExpense);
+  const totalLent = summary?.totalLent ?? 0;
+  const totalDebt = summary?.totalDebt ?? (summary?.totalBorrowed ?? 0);
+  const netSavings = summary?.netSavings ?? (totalIncome - totalExpense + totalDebt - totalLent);
   const totalTransactions = summary?.totalTransactions ?? 0;
 
   // Savings rate percentage based strictly on backend numbers

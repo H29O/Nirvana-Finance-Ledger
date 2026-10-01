@@ -13,6 +13,7 @@ import com.heet.backend.repository.TransactionRepository;
 import com.heet.backend.service.CategoryService;
 import com.heet.backend.service.DashboardService;
 import com.heet.backend.service.TransactionService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import com.heet.backend.repository.LoanRecordRepository;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +39,9 @@ class SecurityIntegrationTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private LoanRecordRepository loanRecordRepository;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -68,6 +73,11 @@ class SecurityIntegrationTest {
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test

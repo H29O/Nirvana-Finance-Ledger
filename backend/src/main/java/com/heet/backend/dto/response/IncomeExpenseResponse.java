@@ -18,4 +18,7 @@ public class IncomeExpenseResponse {
     private BigDecimal totalIncome;
     private BigDecimal totalExpense;
     private BigDecimal balance;
+    private BigDecimal totalLent;
+    private BigDecimal totalDebt;
+    private BigDecimal totalBorrowed;
 }

@@ -6,7 +6,9 @@ import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from 'lucide-react';
 export function DashboardFinancialSummary({ summary }) {
   const totalIncome = summary?.totalIncome ?? 0;
   const totalExpense = summary?.totalExpense ?? 0;
-  const netSavings = summary?.netSavings ?? (totalIncome - totalExpense);
+  const totalLent = summary?.totalLent ?? 0;
+  const totalDebt = summary?.totalDebt ?? (summary?.totalBorrowed ?? 0);
+  const netSavings = summary?.netSavings ?? (totalIncome - totalExpense + totalDebt - totalLent);
   const totalTransactions = summary?.totalTransactions ?? 0;
 
   const isPositiveSavings = netSavings >= 0;
@@ -16,11 +18,11 @@ export function DashboardFinancialSummary({ summary }) {
   return (
     <Card className="p-6 md:p-8 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-        {/* Main Prominent Savings Block */}
+        {/* Main Prominent Total Available Balance Block */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Monthly Savings
+              Total Balance
             </span>
             {savingsRate !== null && (
               <span
@@ -49,13 +51,13 @@ export function DashboardFinancialSummary({ summary }) {
               {formatCurrency(netSavings)}
             </h2>
             <span className="text-xs text-slate-400 font-medium">
-              {isPositiveSavings ? 'retained this month' : 'deficit this month'}
+              {isPositiveSavings ? 'available balance' : 'deficit'}
             </span>
           </div>
         </div>
 
-        {/* Income, Expense, and Activity Sub-Metrics */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-100 lg:pl-8">
+        {/* Income, Expense, Lending, Debt, and Activity Sub-Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-100 lg:pl-8">
           {/* Income */}
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
@@ -75,6 +77,28 @@ export function DashboardFinancialSummary({ summary }) {
             </div>
             <div className="text-lg sm:text-xl font-bold text-slate-900 font-tabular">
               {formatCurrency(totalExpense)}
+            </div>
+          </div>
+
+          {/* Lent */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>Lent</span>
+            </div>
+            <div className="text-lg sm:text-xl font-bold text-slate-900 font-tabular">
+              {formatCurrency(totalLent)}
+            </div>
+          </div>
+
+          {/* Debt */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span>Debt</span>
+            </div>
+            <div className="text-lg sm:text-xl font-bold text-slate-900 font-tabular">
+              {formatCurrency(totalDebt)}
             </div>
           </div>
 

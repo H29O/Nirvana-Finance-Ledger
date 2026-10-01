@@ -19,4 +19,7 @@ public class MonthlySummaryResponse {
     private BigDecimal totalExpense;
     private BigDecimal netSavings;
     private Long totalTransactions;
+    private BigDecimal totalLent;
+    private BigDecimal totalDebt;
+    private BigDecimal totalBorrowed;
 }

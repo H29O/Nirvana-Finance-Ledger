@@ -164,6 +164,61 @@ class OcrDataExtractorTest {
     }
 
     @Test
+    void extractAmount_UpiPaymentScreenshots_ExtractsAmountSuccessfully() {
+        // Direct Google Pay / PhonePe text layout
+        String gpayText = """
+                4:28
+                To SHREE MAA DURGA SUPER MARKET
+                Completed
+                1 Oct 2026, 4:16pm
+                Bandhan Bank 8755
+                Payment of ₹20 completed
+                UPI transaction ID: 627439970934
+                """;
+        assertEquals(new BigDecimal("20.00"), extractor.extractAmount(gpayText));
+        assertEquals("SHREE MAA DURGA SUPER MARKET", extractor.extractMerchant(gpayText));
+
+        String phonePeText = """
+                Transaction Successful
+                Paid to Kwality Dine
+                ₹450
+                Debited from Bank 1234
+                UTR: 123456789012
+                """;
+        assertEquals(new BigDecimal("450.00"), extractor.extractAmount(phonePeText));
+
+        String standaloneUpi = """
+                To Supermarket
+                220
+                Completed
+                UPI ID: 9876543210@upi
+                """;
+        assertEquals(new BigDecimal("220.00"), extractor.extractAmount(standaloneUpi));
+    }
+
+    @Test
+    void extractAmount_JsonPayloadScreenshots_ExtractsAmountCorrectly() {
+        String postmanText = """
+                POST http://localhost:2906/api/transactions
+                {
+                   "amount": 850.00,
+                   "transactionType": "EXPENSE"
+                }
+                """;
+        assertEquals(new BigDecimal("850.00"), extractor.extractAmount(postmanText));
+    }
+
+    @Test
+    void extractAmount_MultilineTotalLabel_ExtractsAmount() {
+        String multiline = """
+                Grand Total
+                ₹ 1,500.00
+                Thank you!
+                """;
+        assertEquals(new BigDecimal("1500.00"), extractor.extractAmount(multiline));
+    }
+
+    @Test
     void extractAmount_NullOrEmpty_ReturnsNull() {
         assertNull(extractor.extractAmount(null));
         assertNull(extractor.extractAmount("No amounts here"));

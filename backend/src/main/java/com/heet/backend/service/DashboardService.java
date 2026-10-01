@@ -17,6 +17,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import com.heet.backend.dto.projection.LoanSummaryProjection;
+import com.heet.backend.enums.LoanStatus;
+import com.heet.backend.enums.LoanType;
+import com.heet.backend.repository.LoanRecordRepository;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,9 +28,11 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final TransactionRepository transactionRepository;
+    private final LoanRecordRepository loanRecordRepository;
 
-    public DashboardService(TransactionRepository transactionRepository) {
+    public DashboardService(TransactionRepository transactionRepository, LoanRecordRepository loanRecordRepository) {
         this.transactionRepository = transactionRepository;
+        this.loanRecordRepository = loanRecordRepository;
     }
 
     @Transactional(readOnly = true)
@@ -37,7 +43,29 @@ public class DashboardService {
 
         BigDecimal totalIncome = getSumByTypeAndUser(userId, TransactionType.INCOME, startDate, endDate);
         BigDecimal totalExpense = getSumByTypeAndUser(userId, TransactionType.EXPENSE, startDate, endDate);
-        BigDecimal netSavings = totalIncome.subtract(totalExpense);
+
+        BigDecimal totalLent = BigDecimal.ZERO;
+        BigDecimal totalBorrowed = BigDecimal.ZERO;
+
+        List<LoanSummaryProjection> activeLoans = loanRecordRepository
+                .findActiveLoanSummaryByUserId(userId, LoanStatus.ACTIVE);
+        if (activeLoans != null) {
+            for (LoanSummaryProjection loan : activeLoans) {
+                if (loan.getType() == LoanType.LENT && loan.getTotalRemainingAmount() != null) {
+                    totalLent = loan.getTotalRemainingAmount();
+                } else if (loan.getType() == LoanType.BORROWED && loan.getTotalRemainingAmount() != null) {
+                    totalBorrowed = loan.getTotalRemainingAmount();
+                }
+            }
+        }
+
+        // Total available money / net balance:
+        // Lend money: - amount
+        // Borrow money: + amount
+        // Receive lent-money repayment: + amount (reduces outstanding lent)
+        // Repay borrowed money: - amount (reduces outstanding borrowed)
+        // Net effect = + totalBorrowed - totalLent
+        BigDecimal netSavings = totalIncome.subtract(totalExpense).add(totalBorrowed).subtract(totalLent);
         Long totalTransactions = transactionRepository.countByUserIdAndTransactionDateBetween(userId, startDate, endDate);
         if (totalTransactions == null) {
             totalTransactions = 0L;
@@ -48,6 +76,9 @@ public class DashboardService {
                 .totalExpense(totalExpense)
                 .netSavings(netSavings)
                 .totalTransactions(totalTransactions)
+                .totalLent(totalLent)
+                .totalDebt(totalBorrowed)
+                .totalBorrowed(totalBorrowed)
                 .build();
     }
 
@@ -88,12 +119,31 @@ public class DashboardService {
 
         BigDecimal totalIncome = getSumByTypeAndUser(userId, TransactionType.INCOME, startDate, endDate);
         BigDecimal totalExpense = getSumByTypeAndUser(userId, TransactionType.EXPENSE, startDate, endDate);
-        BigDecimal balance = totalIncome.subtract(totalExpense);
+
+        BigDecimal totalLent = BigDecimal.ZERO;
+        BigDecimal totalBorrowed = BigDecimal.ZERO;
+
+        List<LoanSummaryProjection> activeLoans = loanRecordRepository
+                .findActiveLoanSummaryByUserId(userId, LoanStatus.ACTIVE);
+        if (activeLoans != null) {
+            for (LoanSummaryProjection loan : activeLoans) {
+                if (loan.getType() == LoanType.LENT && loan.getTotalRemainingAmount() != null) {
+                    totalLent = loan.getTotalRemainingAmount();
+                } else if (loan.getType() == LoanType.BORROWED && loan.getTotalRemainingAmount() != null) {
+                    totalBorrowed = loan.getTotalRemainingAmount();
+                }
+            }
+        }
+
+        BigDecimal balance = totalIncome.subtract(totalExpense).add(totalBorrowed).subtract(totalLent);
 
         return IncomeExpenseResponse.builder()
                 .totalIncome(totalIncome)
                 .totalExpense(totalExpense)
                 .balance(balance)
+                .totalLent(totalLent)
+                .totalDebt(totalBorrowed)
+                .totalBorrowed(totalBorrowed)
                 .build();
     }
 
