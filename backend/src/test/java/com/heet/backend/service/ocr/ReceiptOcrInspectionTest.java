@@ -12,7 +12,14 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ReceiptOcrInspectionTest {
 
     @Test
-    void testEndToEndTesseractServiceOnReceiptWithAutoDiscovery() {
+    void testPaddleOcrServiceHealth() {
+        OcrDataExtractor extractor = new OcrDataExtractor();
+        PaddleOcrService ocrService = new PaddleOcrService("http://127.0.0.1:5005", 30000, extractor);
+        assertTrue(ocrService.isServiceAvailable(), "PaddleOCR service should be available on port 5005");
+    }
+
+    @Test
+    void testEndToEndPaddleOcrOnUpiReceipt() {
         File file = new File("../uploads/receipts/3/upi_durga_receipt.png");
         if (!file.exists()) {
             file = new File("uploads/receipts/3/upi_durga_receipt.png");
@@ -22,32 +29,11 @@ public class ReceiptOcrInspectionTest {
             return;
         }
 
-        ImagePreprocessor preprocessor = new ImagePreprocessor();
         OcrDataExtractor extractor = new OcrDataExtractor();
-
-        TesseractOcrService ocrService = new TesseractOcrService(
-                "",
-                "",
-                "eng",
-                extractor,
-                preprocessor
-        );
-
-        assertNotNull(ocrService.getResolvedDatapath(), "Datapath should be auto-detected");
-        assertNotNull(ocrService.getResolvedLibPath(), "Libpath should be auto-detected");
-
-        net.sourceforge.tess4j.Tesseract rawTess = new net.sourceforge.tess4j.Tesseract();
-        rawTess.setDatapath(ocrService.getResolvedDatapath());
-        rawTess.setVariable("user_defined_dpi", "300");
-        rawTess.setPageSegMode(3);
-        try {
-            String directRaw = rawTess.doOCR(file);
-            System.out.println("=== DIRECT RAW FILE OCR WITH 300 DPI ===");
-            System.out.println(directRaw);
-        } catch (Exception ignored) {}
+        PaddleOcrService ocrService = new PaddleOcrService("http://127.0.0.1:5005", 30000, extractor);
 
         OcrResult result = ocrService.extractTextAndData(file, "image/png");
-        System.out.println("=== END TO END RESULT ===");
+        System.out.println("=== END TO END PADDLEOCR RESULT (UPI DURGA) ===");
         System.out.println("Success: " + result.isSuccess());
         System.out.println("Failure reason: " + result.getFailureReason());
         System.out.println("Merchant: " + result.getDetectedMerchant());
@@ -57,16 +43,46 @@ public class ReceiptOcrInspectionTest {
 
         assertTrue(result.isSuccess(), "OCR extraction should succeed");
         assertNotNull(result.getRawText(), "Raw text should not be null");
-        assertEquals(new java.math.BigDecimal("20.00"), result.getDetectedAmount(), "Detected amount should be 20.00");
+        assertEquals(0, new java.math.BigDecimal("20.00").compareTo(result.getDetectedAmount()), "Detected amount should be 20.00");
         assertNotNull(result.getDetectedMerchant(), "Detected merchant should not be null");
-        assertTrue(result.getDetectedMerchant().contains("DURGA"), "Detected merchant should contain DURGA");
+        assertTrue(result.getDetectedMerchant().toUpperCase().contains("DURGA"), "Detected merchant should contain DURGA");
+    }
+
+    @Test
+    void testRealPhotographedReceipt_Extracts150() {
+        File file = new File("../uploads/receipts/2/1c3d1042-bf32-47bc-833d-181fa20e019a.jpeg");
+        if (!file.exists()) {
+            file = new File("uploads/receipts/2/1c3d1042-bf32-47bc-833d-181fa20e019a.jpeg");
+        }
+        if (!file.exists()) {
+            System.out.println("Receipt file not found: " + file.getAbsolutePath());
+            return;
+        }
+
+        OcrDataExtractor extractor = new OcrDataExtractor();
+        PaddleOcrService ocrService = new PaddleOcrService("http://127.0.0.1:5005", 30000, extractor);
+
+        OcrResult result = ocrService.extractTextAndData(file, "image/jpeg");
+        System.out.println("=== REAL PHOTOGRAPHED RECEIPT PADDLEOCR RESULT ===");
+        System.out.println("SUCCESS: " + result.isSuccess());
+        System.out.println("DETECTED MERCHANT: " + result.getDetectedMerchant());
+        System.out.println("DETECTED AMOUNT: " + result.getDetectedAmount());
+        System.out.println("DETECTED DATE: " + result.getDetectedDate());
+        System.out.println("RAW TEXT:\n" + result.getRawText());
+
+        assertTrue(result.isSuccess(), "OCR should succeed on photographed receipt");
+        assertNotNull(result.getDetectedAmount(), "Detected amount should not be null");
+        assertEquals(0, new java.math.BigDecimal("150.00").compareTo(result.getDetectedAmount()),
+                "Detected amount should be exactly 150.00 instead of 130.6");
+        assertNotNull(result.getDetectedMerchant(), "Merchant should be detected");
+        assertNotNull(result.getDetectedDate(), "Date should be detected");
+        assertEquals(java.time.LocalDate.of(2026, 10, 2), result.getDetectedDate());
     }
 
     @Test
     void testAllReceiptsInUploads() {
-        ImagePreprocessor preprocessor = new ImagePreprocessor();
         OcrDataExtractor extractor = new OcrDataExtractor();
-        TesseractOcrService ocrService = new TesseractOcrService("", "", "eng", extractor, preprocessor);
+        PaddleOcrService ocrService = new PaddleOcrService("http://127.0.0.1:5005", 30000, extractor);
 
         File uploadsDir = new File("../uploads/receipts");
         if (!uploadsDir.exists()) {
@@ -80,18 +96,17 @@ public class ReceiptOcrInspectionTest {
         try (Stream<Path> paths = Files.walk(uploadsDir.toPath())) {
             List<File> files = paths.filter(Files::isRegularFile)
                     .map(Path::toFile)
-                    .filter(f -> f.getName().endsWith(".png") || f.getName().endsWith(".jpg"))
+                    .filter(f -> f.getName().endsWith(".png") || f.getName().endsWith(".jpg") || f.getName().endsWith(".jpeg"))
                     .toList();
 
             for (File file : files) {
                 System.out.println("\n==================================================");
                 System.out.println("FILE: " + file.getName());
-                OcrResult result = ocrService.extractTextAndData(file, "image/png");
+                OcrResult result = ocrService.extractTextAndData(file, file.getName().endsWith(".png") ? "image/png" : "image/jpeg");
                 System.out.println("SUCCESS: " + result.isSuccess());
                 System.out.println("DETECTED MERCHANT: " + result.getDetectedMerchant());
                 System.out.println("DETECTED AMOUNT: " + result.getDetectedAmount());
                 System.out.println("DETECTED DATE: " + result.getDetectedDate());
-                System.out.println("RAW TEXT:\n" + result.getRawText());
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -271,7 +271,7 @@ export function ReceiptUploadModal({ isOpen, onClose, onUploadComplete }) {
               </h4>
               <p className="text-xs text-slate-400">
                 {step === 'uploading' && 'Encrypting and saving file to storage'}
-                {step === 'ocr' && 'Tess4J OCR is identifying merchant, total, and date'}
+                {step === 'ocr' && 'Reading receipt and identifying merchant, total, and date'}
                 {step === 'completed' && 'Ready for your review'}
               </p>
             </div>

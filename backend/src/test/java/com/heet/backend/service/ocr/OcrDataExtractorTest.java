@@ -243,6 +243,163 @@ class OcrDataExtractorTest {
     }
 
     @Test
+    void testExactDurgaPsm4() {
+        String t = "4:28 ©) ott) 5G+ ED\n\n< Oo :\n\nTo SHREE MAA DURGA SUPER MARKET\n\n220\n\n© Completed\n\n1 Oct 2026, 4:16pm\n\nQ) Bandhan Bank 8755 v\n\n‘ Payment of 20 completed\n\nReceiver's bank has confirmed deposit of\nmoney to SHREE MAA DURGA SUPER\nMARKET's bank account\n\nUPI transaction ID\n627439970934\n\nTo: SHREE MAA DURGA SUPER MARKET\n\nane emANIAHA,\n\n@ Having issues? << Share & Split expense\n";
+        BigDecimal a = extractor.extractAmount(t);
+        System.out.println("EXACT DURGA WITH SPACE AMOUNT: " + a);
+        assertEquals(new BigDecimal("20.00"), a);
+    }
+
+    @Test
+    void testCase1_CurrentFailure_ExtractsGrandTotalOverItems() {
+        String receiptText = """
+                HOTEL SHREE KRISHNA
+                Unlimited Misal 130.00
+                Softdrink Rs. 20.00
+                Total 150.00
+                Grand Total 150.00
+                Thank You Visit Again
+                """;
+        assertEquals(new BigDecimal("150.00"), extractor.extractAmount(receiptText));
+    }
+
+    @Test
+    void testCase2_ItemLargerThanTotal_DoesNotSimplyPickLargestNumber() {
+        String receiptText = """
+                ELECTRONICS STORE
+                Headphones 800.00
+                Store Voucher -600.00
+                Tax 50.00
+                Total Amount: 250.00
+                Paid by Card: 250.00
+                """;
+        // Even though 800.00 is the largest number, the total amount is 250.00
+        assertEquals(new BigDecimal("250.00"), extractor.extractAmount(receiptText));
+    }
+
+    @Test
+    void testCase3_MultipleItemPrices_ExtractsFinalReceiptTotal() {
+        String receiptText = """
+                GROCERY MART
+                Milk: 30.00
+                Bread: 40.00
+                Eggs: 60.00
+                Butter: 55.00
+                Subtotal: 185.00
+                Grand Total: 185.00
+                """;
+        assertEquals(new BigDecimal("185.00"), extractor.extractAmount(receiptText));
+    }
+
+    @Test
+    void testCase4_Tax_ExtractsGrandTotalWithTax() {
+        String receiptText = """
+                CAFE NIRVANA
+                Subtotal 130
+                Tax 20
+                Grand Total 150
+                """;
+        assertEquals(new BigDecimal("150.00"), extractor.extractAmount(receiptText));
+    }
+
+    @Test
+    void testCase5_Discount_ExtractsGrandTotalWithDiscount() {
+        String receiptText = """
+                APPAREL STORE
+                Subtotal 200
+                Discount 50
+                Grand Total 150
+                """;
+        assertEquals(new BigDecimal("150.00"), extractor.extractAmount(receiptText));
+    }
+
+    @Test
+    void testCase7_PhotographedReceiptOcrCorruption_Extracts150() {
+        // Raw OCR text resembling the real photograph with formatting artifacts
+        String rawOcr = """
+                Tax Invoice
+                HOTEL NIRVANA
+                Date: 02/10/26
+                1 Unlimited Misal 130,00
+                1 Softdrink 20.00
+                Sub Total 150.00
+                Grand I Tot al x 150.00
+                """;
+        assertEquals(new BigDecimal("150.00"), extractor.extractAmount(rawOcr));
+        assertEquals(LocalDate.of(2026, 10, 2), extractor.extractDate(rawOcr));
+    }
+
+    @Test
+    void testCase6_OcrSpellingCorruption_TotaI_GrandTota1() {
+        String receipt1 = """
+                RESTAURANT
+                Item 1: 100.00
+                TotaI: 100.00
+                """;
+        assertEquals(new BigDecimal("100.00"), extractor.extractAmount(receipt1));
+
+        String receipt2 = """
+                CAFE
+                Item A: 120.00
+                Grand Tota1: 120.00
+                """;
+        assertEquals(new BigDecimal("120.00"), extractor.extractAmount(receipt2));
+    }
+
+    @Test
+    void testSpatialBlockExtraction_GrandTotalOnSameLineAcrossBlocks() {
+        // Grand total label in one block, amount in another block on the same horizontal line
+        com.heet.backend.dto.response.OcrBlockDto labelBlock = com.heet.backend.dto.response.OcrBlockDto.builder()
+                .text("Grand Total")
+                .confidence(0.99)
+                .centerX(150.0)
+                .centerY(500.0)
+                .lineIndex(8)
+                .build();
+
+        com.heet.backend.dto.response.OcrBlockDto amountBlock = com.heet.backend.dto.response.OcrBlockDto.builder()
+                .text("₹150.00")
+                .confidence(0.98)
+                .centerX(800.0)
+                .centerY(502.0)
+                .lineIndex(8)
+                .build();
+
+        com.heet.backend.dto.response.OcrBlockDto itemBlock = com.heet.backend.dto.response.OcrBlockDto.builder()
+                .text("Misal 130.00")
+                .confidence(0.95)
+                .centerX(300.0)
+                .centerY(350.0)
+                .lineIndex(5)
+                .build();
+
+        String rawText = "HOTEL\nMisal 130.00\nGrand Total ₹150.00";
+        BigDecimal amount = extractor.extractAmount(rawText, java.util.List.of(itemBlock, labelBlock, amountBlock));
+        assertEquals(new BigDecimal("150.00"), amount);
+    }
+
+    @Test
+    void testCategorySuggestion_FoodAndDining() {
+        CategoryClassifier classifier = new CategoryClassifier();
+        com.heet.backend.entity.Category diningCat = new com.heet.backend.entity.Category();
+        diningCat.setId(1L);
+        diningCat.setName("Food & Dining");
+
+        com.heet.backend.entity.Category groceryCat = new com.heet.backend.entity.Category();
+        groceryCat.setId(2L);
+        groceryCat.setName("Groceries");
+
+        var suggestion = classifier.suggestCategory(
+                "Thorat's Barbeque Misal\nUnlimited Misal 130.00\nSoftdrink 20.00\nTotal 150.00",
+                "Thorat's Barbeque Misal",
+                java.util.List.of(diningCat, groceryCat)
+        );
+
+        assertNotNull(suggestion);
+        assertEquals("Food & Dining", suggestion.categoryName());
+    }
+
+    @Test
     void extractDate_NullOrEmpty_ReturnsNull() {
         assertNull(extractor.extractDate(null));
         assertNull(extractor.extractDate("No dates here"));
