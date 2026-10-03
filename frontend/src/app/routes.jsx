@@ -9,6 +9,7 @@ import PublicRoute from '../components/common/PublicRoute';
 // Auth Features
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
+import VerifyEmailPage from '../features/auth/VerifyEmailPage';
 
 // Features
 import DashboardPage from '../features/dashboard/DashboardPage';
@@ -38,6 +39,14 @@ export function AppRoutes() {
         element={
           <PublicRoute>
             <RegisterPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/verify-email"
+        element={
+          <PublicRoute>
+            <VerifyEmailPage />
           </PublicRoute>
         }
       />

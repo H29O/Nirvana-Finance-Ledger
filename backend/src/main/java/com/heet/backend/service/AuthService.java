@@ -2,10 +2,13 @@ package com.heet.backend.service;
 
 import com.heet.backend.dto.request.LoginRequest;
 import com.heet.backend.dto.request.RegisterRequest;
+import com.heet.backend.dto.request.ResendVerificationRequest;
+import com.heet.backend.dto.request.VerifyEmailRequest;
 import com.heet.backend.dto.response.AuthResponse;
 import com.heet.backend.dto.response.UserResponse;
 import com.heet.backend.entity.User;
 import com.heet.backend.exception.DuplicateEmailException;
+import com.heet.backend.exception.EmailNotVerifiedException;
 import com.heet.backend.exception.InvalidCredentialsException;
 import com.heet.backend.repository.UserRepository;
 import com.heet.backend.security.JwtTokenProvider;
@@ -21,16 +24,19 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final CategoryService categoryService;
+    private final EmailVerificationService emailVerificationService;
 
     public AuthService(
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtTokenProvider jwtTokenProvider,
-            CategoryService categoryService) {
+            CategoryService categoryService,
+            EmailVerificationService emailVerificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.categoryService = categoryService;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @Transactional
@@ -45,16 +51,27 @@ public class AuthService {
         user.setName(request.getName().trim());
         user.setEmail(trimmedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setEmailVerified(false);
 
         User savedUser = userRepository.save(user);
 
         // Seed initial default categories for the new user account
         categoryService.createDefaultCategoriesForUser(savedUser);
 
-        String token = jwtTokenProvider.generateToken(savedUser.getEmail());
+        // Generate and send 6-digit OTP verification code
+        boolean emailSent = emailVerificationService.createAndSendVerification(savedUser);
+
+        String message = emailSent
+                ? "Verification email sent."
+                : "Verification email could not be sent. Please try again.";
+
+        // Do not issue JWT for unverified account
         return AuthResponse.builder()
-                .token(token)
+                .token(null)
                 .user(mapToUserResponse(savedUser))
+                .message(message)
+                .verificationRequired(true)
+                .emailDeliverySuccess(emailSent)
                 .build();
     }
 
@@ -69,11 +86,35 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
 
+        // Reject unverified login attempts with clear notice without exposing sensitive details
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException(user.getEmail());
+        }
+
         String token = jwtTokenProvider.generateToken(user.getEmail());
         return AuthResponse.builder()
                 .token(token)
                 .user(mapToUserResponse(user))
+                .message("Login successful.")
+                .verificationRequired(false)
                 .build();
+    }
+
+    @Transactional
+    public AuthResponse verifyEmail(VerifyEmailRequest request) {
+        User verifiedUser = emailVerificationService.verifyEmail(request.getEmail(), request.getOtp());
+        String token = jwtTokenProvider.generateToken(verifiedUser.getEmail());
+        return AuthResponse.builder()
+                .token(token)
+                .user(mapToUserResponse(verifiedUser))
+                .message("Email successfully verified.")
+                .verificationRequired(false)
+                .build();
+    }
+
+    @Transactional
+    public void resendVerification(ResendVerificationRequest request) {
+        emailVerificationService.resendVerification(request.getEmail());
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +123,7 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
         User user = userRepository.findById(principal.getId())
-                .orElseThrow(() -> new InvalidCredentialsException());
+                .orElseThrow(InvalidCredentialsException::new);
         return mapToUserResponse(user);
     }
 
@@ -91,6 +132,7 @@ public class AuthService {
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .emailVerified(user.isEmailVerified())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

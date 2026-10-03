@@ -138,6 +138,42 @@ public class GlobalExceptionHandler {
                                 .body(Map.of("error", exception.getMessage()));
         }
 
+        @ExceptionHandler(EmailNotVerifiedException.class)
+        public ResponseEntity<Map<String, Object>> handleEmailNotVerifiedException(
+                        EmailNotVerifiedException exception) {
+
+                Map<String, Object> body = new HashMap<>();
+                body.put("error", exception.getMessage());
+                body.put("email", exception.getEmail());
+                body.put("verificationRequired", true);
+
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+        }
+
+        @ExceptionHandler(EmailVerificationException.class)
+        public ResponseEntity<Map<String, Object>> handleEmailVerificationException(
+                        EmailVerificationException exception) {
+
+                Map<String, Object> body = new HashMap<>();
+                body.put("error", exception.getMessage());
+                if (exception.getRemainingCooldownSeconds() > 0) {
+                        body.put("retryAfterSeconds", exception.getRemainingCooldownSeconds());
+                }
+
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        }
+
+        @ExceptionHandler(EmailDeliveryException.class)
+        public ResponseEntity<Map<String, Object>> handleEmailDeliveryException(
+                        EmailDeliveryException exception) {
+
+                Map<String, Object> body = new HashMap<>();
+                body.put("error", exception.getMessage());
+                body.put("emailDeliverySuccess", false);
+
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
+        }
+
         @ExceptionHandler({ InvalidCredentialsException.class,
                         org.springframework.security.authentication.BadCredentialsException.class })
         public ResponseEntity<Map<String, String>> handleInvalidCredentialsException(

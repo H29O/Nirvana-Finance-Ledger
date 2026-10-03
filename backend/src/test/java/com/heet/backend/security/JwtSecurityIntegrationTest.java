@@ -66,12 +66,14 @@ class JwtSecurityIntegrationTest {
         testUser1.setName("Security Test User 1");
         testUser1.setEmail("secuser1@example.com");
         testUser1.setPasswordHash(passwordEncoder.encode("Password123!"));
+        testUser1.setEmailVerified(true);
         testUser1 = userRepository.save(testUser1);
 
         testUser2 = new User();
         testUser2.setName("Security Test User 2");
         testUser2.setEmail("secuser2@example.com");
         testUser2.setPasswordHash(passwordEncoder.encode("Password123!"));
+        testUser2.setEmailVerified(true);
         testUser2 = userRepository.save(testUser2);
 
         validTokenUser1 = jwtTokenProvider.generateToken(testUser1.getEmail());

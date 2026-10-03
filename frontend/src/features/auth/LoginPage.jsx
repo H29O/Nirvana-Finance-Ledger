@@ -4,7 +4,7 @@ import useAuth from '../../hooks/useAuth';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -12,7 +12,7 @@ export function LoginPage() {
   const location = useLocation();
 
   const [formData, setFormData] = useState({
-    email: '',
+    email: location.state?.email || '',
     password: '',
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +20,7 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const destination = location.state?.from?.pathname || '/';
+  const isVerifiedNotice = location.state?.verified;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,6 +42,15 @@ export function LoginPage() {
       await login(formData);
       navigate(destination, { replace: true });
     } catch (err) {
+      if (err.response?.data?.verificationRequired) {
+        navigate('/verify-email', {
+          state: {
+            email: formData.email.trim(),
+            message: err.response.data.error || 'Please verify your email before signing in.',
+          },
+        });
+        return;
+      }
       setError(err.normalizedMessage || 'Login failed. Please check your credentials.');
     } finally {
       setIsLoading(false);
@@ -79,12 +89,17 @@ export function LoginPage() {
 
         <CardContent className="p-6 pt-0">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
+            {error ? (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-xs text-rose-700">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                 <span>{error}</span>
               </div>
-            )}
+            ) : isVerifiedNotice ? (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
+                <span>Email verified successfully. Please sign in to continue.</span>
+              </div>
+            ) : null}
 
             <Input
               label="Email Address"

@@ -34,6 +34,9 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

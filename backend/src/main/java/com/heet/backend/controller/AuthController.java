@@ -2,6 +2,8 @@ package com.heet.backend.controller;
 
 import com.heet.backend.dto.request.LoginRequest;
 import com.heet.backend.dto.request.RegisterRequest;
+import com.heet.backend.dto.request.ResendVerificationRequest;
+import com.heet.backend.dto.request.VerifyEmailRequest;
 import com.heet.backend.dto.response.AuthResponse;
 import com.heet.backend.service.AuthService;
 import jakarta.validation.Valid;
@@ -11,6 +13,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -32,5 +36,20 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<AuthResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        AuthResponse response = authService.verifyEmail(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Map<String, Object>> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        authService.resendVerification(request);
+        return ResponseEntity.ok(Map.of(
+                "message", "Verification email sent.",
+                "emailDeliverySuccess", true
+        ));
     }
 }

@@ -69,36 +69,35 @@ export function AuthProvider({ children }) {
 
   // Login action
   const login = useCallback(async ({ email, password }) => {
-    setIsLoading(true);
-    try {
-      const response = await authService.login({ email, password });
-      const { token: receivedToken, user: receivedUser } = response;
+    const response = await authService.login({ email, password });
+    const { token: receivedToken, user: receivedUser } = response;
 
-      localStorage.setItem(STORAGE_KEYS.TOKEN, receivedToken);
-      setToken(receivedToken);
-      setUser(receivedUser);
+    localStorage.setItem(STORAGE_KEYS.TOKEN, receivedToken);
+    setToken(receivedToken);
+    setUser(receivedUser);
 
-      return response;
-    } finally {
-      setIsLoading(false);
-    }
+    return response;
   }, []);
 
   // Register action
   const register = useCallback(async ({ name, email, password }) => {
-    setIsLoading(true);
-    try {
-      const response = await authService.register({ name, email, password });
-      const { token: receivedToken, user: receivedUser } = response;
+    const response = await authService.register({ name, email, password });
+    const { token: receivedToken, user: receivedUser } = response;
 
+    // Only establish session if a token was granted
+    if (receivedToken) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, receivedToken);
       setToken(receivedToken);
       setUser(receivedUser);
-
-      return response;
-    } finally {
-      setIsLoading(false);
     }
+
+    return response;
+  }, []);
+
+  // Verify email action (does not create an authenticated session; user proceeds to login)
+  const verifyEmail = useCallback(async ({ email, otp }) => {
+    const response = await authService.verifyEmail({ email, otp });
+    return response;
   }, []);
 
   const value = {
@@ -108,6 +107,7 @@ export function AuthProvider({ children }) {
     isLoading,
     login,
     register,
+    verifyEmail,
     logout,
   };
 

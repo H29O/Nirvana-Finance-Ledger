@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -97,5 +98,37 @@ class AuthControllerTest {
                 .thenThrow(new InvalidCredentialsException());
 
         assertThrows(InvalidCredentialsException.class, () -> authController.login(loginRequest));
+    }
+
+    @Test
+    void verifyEmail_Success_Returns200OK() {
+        com.heet.backend.dto.request.VerifyEmailRequest request = com.heet.backend.dto.request.VerifyEmailRequest.builder()
+                .email("john@example.com")
+                .otp("123456")
+                .build();
+
+        when(authService.verifyEmail(any(com.heet.backend.dto.request.VerifyEmailRequest.class))).thenReturn(authResponse);
+
+        ResponseEntity<AuthResponse> response = authController.verifyEmail(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("mock-jwt-token", response.getBody().getToken());
+    }
+
+    @Test
+    void resendVerification_Success_Returns200OK() {
+        com.heet.backend.dto.request.ResendVerificationRequest request = com.heet.backend.dto.request.ResendVerificationRequest.builder()
+                .email("john@example.com")
+                .build();
+
+        org.mockito.Mockito.doNothing().when(authService).resendVerification(any(com.heet.backend.dto.request.ResendVerificationRequest.class));
+
+        ResponseEntity<java.util.Map<String, Object>> response = authController.resendVerification(request);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().containsKey("message"));
+        assertEquals(true, response.getBody().get("emailDeliverySuccess"));
     }
 }

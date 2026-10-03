@@ -2,10 +2,13 @@ package com.heet.backend.service;
 
 import com.heet.backend.dto.request.LoginRequest;
 import com.heet.backend.dto.request.RegisterRequest;
+import com.heet.backend.dto.request.ResendVerificationRequest;
+import com.heet.backend.dto.request.VerifyEmailRequest;
 import com.heet.backend.dto.response.AuthResponse;
 import com.heet.backend.dto.response.UserResponse;
 import com.heet.backend.entity.User;
 import com.heet.backend.exception.DuplicateEmailException;
+import com.heet.backend.exception.EmailNotVerifiedException;
 import com.heet.backend.exception.InvalidCredentialsException;
 import com.heet.backend.repository.UserRepository;
 import com.heet.backend.security.JwtTokenProvider;
@@ -40,6 +43,9 @@ class AuthServiceTest {
     @Mock
     private CategoryService categoryService;
 
+    @Mock
+    private EmailVerificationService emailVerificationService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -52,10 +58,11 @@ class AuthServiceTest {
         sampleUser.setName("Alice");
         sampleUser.setEmail("alice@example.com");
         sampleUser.setPasswordHash("$2a$10$encodedPasswordHash");
+        sampleUser.setEmailVerified(true);
     }
 
     @Test
-    void register_EncodesPasswordWithBCryptAndReturnsToken() {
+    void register_EncodesPasswordCreatesUnverifiedUserAndTriggersVerification() {
         RegisterRequest request = RegisterRequest.builder()
                 .name("Alice")
                 .email("  alice@example.com  ")
@@ -69,13 +76,18 @@ class AuthServiceTest {
             u.setId(1L);
             return u;
         });
-        when(jwtTokenProvider.generateToken("alice@example.com")).thenReturn("mock.jwt.token");
+
+        when(emailVerificationService.createAndSendVerification(any(User.class))).thenReturn(true);
 
         AuthResponse response = authService.register(request);
 
         assertNotNull(response);
-        assertEquals("mock.jwt.token", response.getToken());
+        assertNull(response.getToken()); // Must not issue JWT for unverified registration
+        assertTrue(response.isVerificationRequired());
+        assertEquals(true, response.getEmailDeliverySuccess());
+        assertEquals("Verification email sent.", response.getMessage());
         assertEquals("alice@example.com", response.getUser().getEmail());
+        assertFalse(response.getUser().isEmailVerified());
 
         // Verify password was strictly hashed and never saved as plaintext
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
@@ -83,7 +95,35 @@ class AuthServiceTest {
         User savedUser = userCaptor.getValue();
         assertEquals("$2a$10$encodedPasswordHash", savedUser.getPasswordHash());
         assertNotEquals("plainTextPass123", savedUser.getPasswordHash());
+        assertFalse(savedUser.isEmailVerified());
         verify(passwordEncoder).encode("plainTextPass123");
+        verify(emailVerificationService).createAndSendVerification(savedUser);
+    }
+
+    @Test
+    void register_EmailDeliveryFails_ReturnsFailureMessageAndPreservesRecord() {
+        RegisterRequest request = RegisterRequest.builder()
+                .name("Alice")
+                .email("alice@example.com")
+                .password("plainTextPass123")
+                .build();
+
+        when(userRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("plainTextPass123")).thenReturn("$2a$10$encodedPasswordHash");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(emailVerificationService.createAndSendVerification(any(User.class))).thenReturn(false);
+
+        AuthResponse response = authService.register(request);
+
+        assertNotNull(response);
+        assertEquals(false, response.getEmailDeliverySuccess());
+        assertEquals("Verification email could not be sent. Please try again.", response.getMessage());
+        assertTrue(response.isVerificationRequired());
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
@@ -98,16 +138,17 @@ class AuthServiceTest {
 
         assertThrows(DuplicateEmailException.class, () -> authService.register(request));
         verify(userRepository, never()).save(any());
-        verify(jwtTokenProvider, never()).generateToken(any());
+        verify(emailVerificationService, never()).createAndSendVerification(any());
     }
 
     @Test
-    void login_ValidCredentials_ReturnsTokenAndUserProfile() {
+    void login_VerifiedUser_ReturnsTokenAndUserProfile() {
         LoginRequest request = LoginRequest.builder()
                 .email("alice@example.com")
                 .password("plainTextPass123")
                 .build();
 
+        sampleUser.setEmailVerified(true);
         when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(sampleUser));
         when(passwordEncoder.matches("plainTextPass123", sampleUser.getPasswordHash())).thenReturn(true);
         when(jwtTokenProvider.generateToken("alice@example.com")).thenReturn("mock.jwt.token");
@@ -117,6 +158,24 @@ class AuthServiceTest {
         assertNotNull(response);
         assertEquals("mock.jwt.token", response.getToken());
         assertEquals("alice@example.com", response.getUser().getEmail());
+        assertTrue(response.getUser().isEmailVerified());
+        assertFalse(response.isVerificationRequired());
+    }
+
+    @Test
+    void login_UnverifiedUser_ThrowsEmailNotVerifiedExceptionAndNoJwt() {
+        LoginRequest request = LoginRequest.builder()
+                .email("alice@example.com")
+                .password("plainTextPass123")
+                .build();
+
+        sampleUser.setEmailVerified(false);
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(sampleUser));
+        when(passwordEncoder.matches("plainTextPass123", sampleUser.getPasswordHash())).thenReturn(true);
+
+        EmailNotVerifiedException ex = assertThrows(EmailNotVerifiedException.class, () -> authService.login(request));
+        assertEquals("alice@example.com", ex.getEmail());
+        verify(jwtTokenProvider, never()).generateToken(any());
     }
 
     @Test
@@ -143,6 +202,38 @@ class AuthServiceTest {
         when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
 
         assertThrows(InvalidCredentialsException.class, () -> authService.login(request));
+    }
+
+    @Test
+    void verifyEmail_CorrectOtp_VerifiesUserAndReturnsJwt() {
+        VerifyEmailRequest request = VerifyEmailRequest.builder()
+                .email("alice@example.com")
+                .otp("123456")
+                .build();
+
+        sampleUser.setEmailVerified(true);
+        when(emailVerificationService.verifyEmail("alice@example.com", "123456")).thenReturn(sampleUser);
+        when(jwtTokenProvider.generateToken("alice@example.com")).thenReturn("verified.jwt.token");
+
+        AuthResponse response = authService.verifyEmail(request);
+
+        assertNotNull(response);
+        assertEquals("verified.jwt.token", response.getToken());
+        assertTrue(response.getUser().isEmailVerified());
+        assertFalse(response.isVerificationRequired());
+    }
+
+    @Test
+    void resendVerification_DelegatesToService() {
+        ResendVerificationRequest request = ResendVerificationRequest.builder()
+                .email("alice@example.com")
+                .build();
+
+        doNothing().when(emailVerificationService).resendVerification("alice@example.com");
+
+        authService.resendVerification(request);
+
+        verify(emailVerificationService).resendVerification("alice@example.com");
     }
 
     @Test

@@ -17,12 +17,14 @@ export function RegisterPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [isDuplicateEmail, setIsDuplicateEmail] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError('');
+    if (isDuplicateEmail) setIsDuplicateEmail(false);
   };
 
   const handleSubmit = async (e) => {
@@ -39,12 +41,39 @@ export function RegisterPage() {
 
     setIsLoading(true);
     setError('');
+    setIsDuplicateEmail(false);
 
     try {
-      await register(formData);
-      navigate('/', { replace: true });
+      const response = await register(formData);
+      if (response?.verificationRequired || !response?.token) {
+        navigate('/verify-email', {
+          state: {
+            email: formData.email.trim(),
+            name: formData.name.trim(),
+            emailDeliverySuccess: response?.emailDeliverySuccess !== false,
+            message: response?.emailDeliverySuccess === false
+              ? "We couldn't send the verification email. Please try again."
+              : 'Verification code sent.',
+          },
+          replace: true,
+        });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (err) {
-      setError(err.normalizedMessage || 'Registration failed. Please try again.');
+      const isDuplicate =
+        err.response?.status === 409 ||
+        (err.response?.data?.error && err.response.data.error.toLowerCase().includes('already exists'));
+
+      if (isDuplicate) {
+        setError('An account with this email already exists. Please sign in instead.');
+        setIsDuplicateEmail(true);
+      } else {
+        setIsDuplicateEmail(false);
+        setError(err.normalizedMessage || 'Registration failed. Please try again.');
+      }
+      // Security/UX convention: Clear password only, keep user's name and email in the form
+      setFormData((prev) => ({ ...prev, password: '' }));
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +114,20 @@ export function RegisterPage() {
             {error && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-xs text-rose-700">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
-                <span>{error}</span>
+                <div className="flex-1">
+                  <span>{error}</span>
+                  {isDuplicateEmail && (
+                    <div className="mt-1.5">
+                      <Link
+                        to="/login"
+                        state={{ email: formData.email }}
+                        className="font-semibold text-rose-800 hover:text-rose-950 underline inline-flex items-center gap-1"
+                      >
+                        Sign in now &rarr;
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -154,6 +196,7 @@ export function RegisterPage() {
             Already have an account?{' '}
             <Link
               to="/login"
+              state={{ email: formData.email }}
               className="text-indigo-600 hover:text-indigo-700 font-semibold hover:underline transition-colors"
             >
               Sign In
