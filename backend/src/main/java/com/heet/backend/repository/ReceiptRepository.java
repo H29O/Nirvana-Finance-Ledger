@@ -4,6 +4,9 @@ import com.heet.backend.entity.Receipt;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -20,4 +23,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     boolean existsByTransactionId(Long transactionId);
 
     boolean existsByTransactionIdAndIdNot(Long transactionId, Long id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM Receipt r WHERE r.user.id = :userId")
+    int deleteByUserId(@Param("userId") Long userId);
 }

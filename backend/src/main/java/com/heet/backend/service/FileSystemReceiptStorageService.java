@@ -86,4 +86,27 @@ public class FileSystemReceiptStorageService implements ReceiptStorageService {
             throw new FileStorageException("Could not delete file at " + storagePath, ex);
         }
     }
+
+    @Override
+    public void deleteUserStorage(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        try {
+            Path userDir = this.baseStorageLocation.resolve(userId.toString()).normalize();
+            if (Files.exists(userDir) && userDir.startsWith(this.baseStorageLocation)) {
+                try (var pathStream = Files.walk(userDir)) {
+                    pathStream.sorted(java.util.Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    Files.deleteIfExists(path);
+                                } catch (IOException ignored) {
+                                }
+                            });
+                }
+            }
+        } catch (IOException ex) {
+            throw new FileStorageException("Could not delete user storage directory for user " + userId, ex);
+        }
+    }
 }

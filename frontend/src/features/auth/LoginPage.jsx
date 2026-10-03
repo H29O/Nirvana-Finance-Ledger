@@ -94,6 +94,11 @@ export function LoginPage() {
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                 <span>{error}</span>
               </div>
+            ) : location.state?.message ? (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
+                <span>{location.state.message}</span>
+              </div>
             ) : isVerifiedNotice ? (
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />

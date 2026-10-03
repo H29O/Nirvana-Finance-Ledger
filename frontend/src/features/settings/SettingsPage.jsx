@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import userService from '../../services/user.service';
 import PageHeader from '../../components/ui/PageHeader';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import { formatDate } from '../../lib/formatters';
 import {
   User,
@@ -16,6 +18,8 @@ import {
   LogOut,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Trash2,
   Smartphone,
   Layers,
   Sparkles,
@@ -23,6 +27,7 @@ import {
 } from 'lucide-react';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const { user: authUser, logout } = useAuth();
 
   const [profile, setProfile] = useState(authUser);
@@ -36,6 +41,12 @@ export function SettingsPage() {
 
   // Logout modal state
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+  // Delete account modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   // Load fresh user profile from backend /api/users/me
   useEffect(() => {
@@ -117,6 +128,32 @@ export function SettingsPage() {
   const handleConfirmLogout = () => {
     setIsLogoutModalOpen(false);
     logout();
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE' || isDeleting) return;
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      await userService.deleteAccount();
+      logout();
+      sessionStorage.clear();
+      setIsDeleteModalOpen(false);
+      navigate('/login', {
+        replace: true,
+        state: { message: 'Your account has been permanently deleted.' },
+      });
+    } catch (err) {
+      setDeleteError(
+        err.normalizedMessage ||
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          'Failed to delete account. Please try again.'
+      );
+      setIsDeleting(false);
+    }
   };
 
   const userInitial = profile?.name
@@ -364,13 +401,42 @@ export function SettingsPage() {
           </div>
 
           <Button
-            variant="danger"
+            variant="secondary"
             size="sm"
             onClick={() => setIsLogoutModalOpen(true)}
             className="flex items-center gap-1.5 shadow-sm self-start sm:self-center"
           >
             <LogOut className="w-4 h-4" />
             <span>Log Out</span>
+          </Button>
+        </div>
+      </Card>
+
+      {/* 6. Danger Zone Section */}
+      <Card className="p-6 md:p-7 bg-white border border-rose-200 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-rose-600 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <span>Danger Zone</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Permanently delete your account and all associated personal data
+            </p>
+          </div>
+
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => {
+              setDeleteConfirmText('');
+              setDeleteError('');
+              setIsDeleteModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 shadow-sm self-start sm:self-center bg-rose-600 hover:bg-rose-700 focus:ring-rose-500"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Account</span>
           </Button>
         </div>
       </Card>
@@ -423,6 +489,103 @@ export function SettingsPage() {
                 className="text-xs"
               >
                 Confirm Log Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Deletion Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+            onClick={() => {
+              if (!isDeleting) {
+                setIsDeleteModalOpen(false);
+                setDeleteConfirmText('');
+                setDeleteError('');
+              }
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Modal Container */}
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-rose-100 p-6 z-10 space-y-5 animate-scale-in">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Delete your account?
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Permanent and irreversible account removal
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs text-slate-600 leading-relaxed">
+              <p>
+                This will permanently delete your Nivara account and all associated data, including transactions, categories, receipts, lending and borrowing records, and other account data.
+              </p>
+              <p className="font-semibold text-rose-600">
+                This action cannot be undone.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-xs text-rose-700">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label
+                htmlFor="delete-confirm-input"
+                className="block text-xs font-medium text-slate-700"
+              >
+                Type <span className="font-mono font-bold text-rose-600">DELETE</span> to confirm:
+              </label>
+              <Input
+                id="delete-confirm-input"
+                type="text"
+                placeholder="DELETE"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                disabled={isDeleting}
+                className="font-mono text-center tracking-wider font-semibold"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeleteConfirmText('');
+                  setDeleteError('');
+                }}
+                disabled={isDeleting}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleConfirmDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                isLoading={isDeleting}
+                className="text-xs bg-rose-600 hover:bg-rose-700 focus:ring-rose-500"
+              >
+                Delete Account Permanently
               </Button>
             </div>
           </div>

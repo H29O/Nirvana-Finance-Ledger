@@ -10,4 +10,6 @@ public interface ReceiptStorageService {
     Resource loadFileAsResource(String storagePath);
 
     void deleteFile(String storagePath);
+
+    void deleteUserStorage(Long userId);
 }
