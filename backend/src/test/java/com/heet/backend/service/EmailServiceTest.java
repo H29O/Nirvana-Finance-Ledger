@@ -30,8 +30,9 @@ class EmailServiceTest {
     void setUp() {
         emailService = new EmailService(
                 mailSender,
-                "Nivara <onboarding@resend.dev>",
-                "smtp.resend.com",
+                "Nivara <nivara.app@gmail.com>",
+                "nivara.app@gmail.com",
+                "smtp.gmail.com",
                 465
         );
     }
@@ -61,7 +62,7 @@ class EmailServiceTest {
         Address[] fromAddresses = sentMessage.getFrom();
         assertNotNull(fromAddresses);
         assertEquals(1, fromAddresses.length);
-        assertEquals("onboarding@resend.dev", ((InternetAddress) fromAddresses[0]).getAddress());
+        assertEquals("nivara.app@gmail.com", ((InternetAddress) fromAddresses[0]).getAddress());
 
         // Verify subject
         assertEquals("Verify your email - Nivara", sentMessage.getSubject());

@@ -42,11 +42,19 @@ public class BackendApplication {
 						if (System.getProperty(key) == null && System.getenv(key) == null) {
 							System.setProperty(key, value);
 						}
-						if (key.equals("Resend_SMTP") && System.getProperty("RESEND_SMTP_PASSWORD") == null && System.getenv("RESEND_SMTP_PASSWORD") == null) {
-							System.setProperty("RESEND_SMTP_PASSWORD", value);
+						if ((key.equals("Google") || key.equalsIgnoreCase("GMAIL_APP_PASSWORD")) 
+								&& System.getProperty("SPRING_MAIL_PASSWORD") == null 
+								&& System.getenv("SPRING_MAIL_PASSWORD") == null) {
+							String sanitizedPassword = value.replace(" ", "");
+							System.setProperty("SPRING_MAIL_PASSWORD", sanitizedPassword);
+							System.setProperty("GMAIL_APP_PASSWORD", sanitizedPassword);
+							System.setProperty("Google", sanitizedPassword);
 						}
-						if (key.equals("RESEND_SMTP_PASSWORD") && System.getProperty("Resend_SMTP") == null && System.getenv("Resend_SMTP") == null) {
-							System.setProperty("Resend_SMTP", value);
+						if ((key.equalsIgnoreCase("GMAIL_USERNAME") || key.equalsIgnoreCase("GMAIL_ADDRESS")) 
+								&& System.getProperty("SPRING_MAIL_USERNAME") == null 
+								&& System.getenv("SPRING_MAIL_USERNAME") == null) {
+							System.setProperty("SPRING_MAIL_USERNAME", value);
+							System.setProperty("GMAIL_USERNAME", value);
 						}
 					}
 					break;

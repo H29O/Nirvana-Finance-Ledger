@@ -18,13 +18,13 @@ import java.util.Properties;
 @Configuration
 public class MailConfig {
 
-    @Value("${spring.mail.host:smtp.resend.com}")
+    @Value("${spring.mail.host:smtp.gmail.com}")
     private String host;
 
     @Value("${spring.mail.port:465}")
     private int port;
 
-    @Value("${spring.mail.username:resend}")
+    @Value("${spring.mail.username:}")
     private String username;
 
     @Value("${spring.mail.password:}")
@@ -36,11 +36,19 @@ public class MailConfig {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         mailSender.setHost(host);
         mailSender.setPort(port);
-        mailSender.setUsername(username);
+
+        String effectiveUsername = username;
+        if (effectiveUsername == null || effectiveUsername.isBlank()) {
+            effectiveUsername = loadFromEnvFile("GMAIL_USERNAME", "GMAIL_ADDRESS", "GMAIL_EMAIL", "SPRING_MAIL_USERNAME");
+        }
+        mailSender.setUsername(effectiveUsername);
 
         String effectivePassword = password;
         if (effectivePassword == null || effectivePassword.isBlank()) {
-            effectivePassword = loadSecretFromEnvFile();
+            effectivePassword = loadFromEnvFile("Google", "GMAIL_APP_PASSWORD", "SPRING_MAIL_PASSWORD");
+        }
+        if (effectivePassword != null) {
+            effectivePassword = effectivePassword.replace(" ", "");
         }
         mailSender.setPassword(effectivePassword);
 
@@ -48,7 +56,7 @@ public class MailConfig {
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.ssl.enable", "true");
-        props.put("mail.smtp.ssl.trust", "smtp.resend.com");
+        props.put("mail.smtp.ssl.trust", host != null && !host.isBlank() ? host : "smtp.gmail.com");
         props.put("mail.smtp.connectiontimeout", "5000");
         props.put("mail.smtp.timeout", "5000");
         props.put("mail.smtp.writetimeout", "5000");
@@ -56,7 +64,7 @@ public class MailConfig {
         return mailSender;
     }
 
-    private String loadSecretFromEnvFile() {
+    private String loadFromEnvFile(String... targetKeys) {
         List<File> candidates = List.of(
                 new File("../.env"),
                 new File(".env"),
@@ -69,16 +77,20 @@ public class MailConfig {
                     List<String> lines = Files.readAllLines(candidate.toPath(), StandardCharsets.UTF_8);
                     for (String line : lines) {
                         String trimmed = line.trim();
-                        if (trimmed.startsWith("#") || trimmed.isEmpty()) {
+                        if (trimmed.startsWith("#") || trimmed.isEmpty() || !trimmed.contains("=")) {
                             continue;
                         }
-                        if (trimmed.startsWith("Resend_SMTP=") || trimmed.startsWith("RESEND_SMTP_PASSWORD=")) {
-                            String val = trimmed.substring(trimmed.indexOf('=') + 1).trim();
-                            if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
-                                val = val.substring(1, val.length() - 1);
-                            }
-                            if (!val.isBlank()) {
-                                return val;
+                        int eqIdx = trimmed.indexOf('=');
+                        String key = trimmed.substring(0, eqIdx).trim();
+                        for (String targetKey : targetKeys) {
+                            if (key.equalsIgnoreCase(targetKey)) {
+                                String val = trimmed.substring(eqIdx + 1).trim();
+                                if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
+                                    val = val.substring(1, val.length() - 1);
+                                }
+                                if (!val.isBlank()) {
+                                    return val;
+                                }
                             }
                         }
                     }

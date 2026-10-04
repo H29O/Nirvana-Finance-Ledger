@@ -21,11 +21,20 @@ public class EmailService {
 
     public EmailService(
             JavaMailSender mailSender,
-            @Value("${app.mail.from:Nivara <onboarding@resend.dev>}") String fromEmail,
-            @Value("${spring.mail.host:smtp.resend.com}") String smtpHost,
+            @Value("${app.mail.from:}") String fromEmail,
+            @Value("${spring.mail.username:}") String mailUsername,
+            @Value("${spring.mail.host:smtp.gmail.com}") String smtpHost,
             @Value("${spring.mail.port:465}") int smtpPort) {
         this.mailSender = mailSender;
-        this.fromEmail = fromEmail;
+        String resolvedFrom = (fromEmail != null && !fromEmail.isBlank()) ? fromEmail : mailUsername;
+        if (resolvedFrom == null || resolvedFrom.isBlank()) {
+            resolvedFrom = "nivara.app@gmail.com";
+        }
+        if (!resolvedFrom.contains("<") && resolvedFrom.contains("@")) {
+            this.fromEmail = "Nivara <" + resolvedFrom.trim() + ">";
+        } else {
+            this.fromEmail = resolvedFrom.trim();
+        }
         this.smtpHost = smtpHost;
         this.smtpPort = smtpPort;
     }
@@ -85,15 +94,6 @@ public class EmailService {
                 rootCause.getClass().getSimpleName(),
                 rootCause.getMessage()
         );
-
-        if (isResendSandboxError(rootCause.getMessage())) {
-            log.warn("""
-                    [RESEND SANDBOX RESTRICTION DETECTED]
-                    The temporary sender '{}' on Resend free tier can only deliver to the verified Resend account owner.
-                    Sending to arbitrary external recipients requires verifying a domain on https://resend.com/domains
-                    and configuring RESEND_FROM_EMAIL with that verified domain.
-                    """, fromEmail);
-        }
     }
 
     private Throwable findRootCause(Throwable t) {
@@ -129,12 +129,6 @@ public class EmailService {
         return "UNKNOWN_MAIL_ERROR";
     }
 
-    private boolean isResendSandboxError(String message) {
-        if (message == null) return false;
-        String lower = message.toLowerCase();
-        return lower.contains("testing emails to your own email address") ||
-               lower.contains("verify a domain at resend.com");
-    }
 
     private String extractDomain(String email) {
         if (email != null && email.contains("@")) {

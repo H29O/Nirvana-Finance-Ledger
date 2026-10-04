@@ -14,11 +14,55 @@ import java.util.Properties;
 public class SmtpDiagnosticRunner {
 
     private String getSecret() {
-        String fromEnv = System.getenv("RESEND_SMTP_PASSWORD");
+        String fromEnv = System.getenv("SPRING_MAIL_PASSWORD");
+        if (fromEnv != null && !fromEnv.isBlank()) {
+            return fromEnv.replace(" ", "");
+        }
+        String fromEnv2 = System.getenv("Google");
+        if (fromEnv2 != null && !fromEnv2.isBlank()) {
+            return fromEnv2.replace(" ", "");
+        }
+        String fromEnv3 = System.getenv("GMAIL_APP_PASSWORD");
+        if (fromEnv3 != null && !fromEnv3.isBlank()) {
+            return fromEnv3.replace(" ", "");
+        }
+
+        List<File> candidates = List.of(
+                new File("../.env"),
+                new File(".env"),
+                new File(System.getProperty("user.dir"), ".env"),
+                new File(System.getProperty("user.dir"), "../.env")
+        );
+
+        for (File candidate : candidates) {
+            if (candidate.exists() && candidate.isFile()) {
+                try {
+                    List<String> lines = Files.readAllLines(candidate.toPath(), StandardCharsets.UTF_8);
+                    for (String line : lines) {
+                        String trimmed = line.trim();
+                        if (trimmed.startsWith("Google=") || trimmed.startsWith("GMAIL_APP_PASSWORD=") || trimmed.startsWith("SPRING_MAIL_PASSWORD=")) {
+                            String val = trimmed.substring(trimmed.indexOf('=') + 1).trim();
+                            if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
+                                val = val.substring(1, val.length() - 1);
+                            }
+                            if (!val.isBlank()) {
+                                return val.replace(" ", "");
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getUsername() {
+        String fromEnv = System.getenv("SPRING_MAIL_USERNAME");
         if (fromEnv != null && !fromEnv.isBlank()) {
             return fromEnv;
         }
-        String fromEnv2 = System.getenv("Resend_SMTP");
+        String fromEnv2 = System.getenv("GMAIL_USERNAME");
         if (fromEnv2 != null && !fromEnv2.isBlank()) {
             return fromEnv2;
         }
@@ -36,7 +80,7 @@ public class SmtpDiagnosticRunner {
                     List<String> lines = Files.readAllLines(candidate.toPath(), StandardCharsets.UTF_8);
                     for (String line : lines) {
                         String trimmed = line.trim();
-                        if (trimmed.startsWith("RESEND_SMTP_PASSWORD=") || trimmed.startsWith("Resend_SMTP=")) {
+                        if (trimmed.startsWith("GMAIL_USERNAME=") || trimmed.startsWith("SPRING_MAIL_USERNAME=")) {
                             String val = trimmed.substring(trimmed.indexOf('=') + 1).trim();
                             if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
                                 val = val.substring(1, val.length() - 1);
@@ -50,7 +94,7 @@ public class SmtpDiagnosticRunner {
                 }
             }
         }
-        return null;
+        return "nivara.app@gmail.com";
     }
 
     @Test
@@ -59,11 +103,11 @@ public class SmtpDiagnosticRunner {
         System.out.println("                        SMTP DIAGNOSTIC REPORT                                  ");
         System.out.println("================================================================================");
 
-        String host = "smtp.resend.com";
+        String host = "smtp.gmail.com";
         int port = 465;
-        String username = "resend";
+        String username = getUsername();
         String password = getSecret();
-        String sender = "Nivara <onboarding@resend.dev>";
+        String sender = "Nivara <" + username + ">";
 
         // Safe diagnostics
         System.out.println("1. RUNTIME CONFIGURATION INSPECTION:");
@@ -77,7 +121,7 @@ public class SmtpDiagnosticRunner {
         System.out.println("   Working dir:                " + System.getProperty("user.dir"));
 
         if (password == null || password.isBlank()) {
-            System.err.println("FATAL: Resend SMTP password could not be resolved from environment or .env!");
+            System.err.println("FATAL: Gmail SMTP password could not be resolved from environment or .env!");
             return;
         }
 
@@ -87,7 +131,7 @@ public class SmtpDiagnosticRunner {
         props.put("mail.smtp.port", String.valueOf(port));
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.ssl.enable", "true");
-        props.put("mail.smtp.ssl.trust", "smtp.resend.com");
+        props.put("mail.smtp.ssl.trust", "smtp.gmail.com");
         props.put("mail.smtp.connectiontimeout", "5000");
         props.put("mail.smtp.timeout", "5000");
         props.put("mail.smtp.writetimeout", "5000");
@@ -99,34 +143,22 @@ public class SmtpDiagnosticRunner {
             }
         });
 
-        // Step 6: Test SMTP connection and authentication
+        // Test SMTP connection and authentication
         System.out.println("\n2. ISOLATED SMTP CONNECTION & AUTHENTICATION TEST:");
         try (Transport transport = session.getTransport("smtp")) {
             transport.connect(host, port, username, password);
-            System.out.println("   RESULT: PASS (Connected to " + host + ":" + port + " and authenticated successfully with Resend)");
+            System.out.println("   RESULT: PASS (Connected to " + host + ":" + port + " and authenticated successfully with Gmail)");
         } catch (Exception e) {
             System.out.println("   RESULT: FAIL");
             printFullExceptionChain("AUTHENTICATION FAILURE", e);
             return;
         }
 
-        // Step 8: Compare Recipient B (Nivara registration attempt) vs Recipient A (Resend account owner)
-        System.out.println("\n3. COMPARATIVE RECIPIENT DELIVERY TESTS:");
-
-        // Test B: Nivara registration email
-        String recipientB = "heetoswal7@gmail.com";
-        System.out.println("\n   --> [TEST 3B] Sending to Nivara Registration Email: " + recipientB);
-        sendSingleTest(session, sender, recipientB, "Nivara Diagnostic Test - Registration Email");
-
-        // Test A: Resend Account Owner email
-        String recipientA = "heet1670@gmail.com";
-        System.out.println("\n   --> [TEST 3A] Sending to Resend Account Owner Email: " + recipientA);
-        sendSingleTest(session, sender, recipientA, "Nivara Diagnostic Test - Account Owner Email");
-
-        // Test C: Official Resend Test Recipient
-        String recipientC = "delivered@resend.dev";
-        System.out.println("\n   --> [TEST 3C] Sending to Resend Testing Recipient: " + recipientC);
-        sendSingleTest(session, sender, recipientC, "Nivara Diagnostic Test - Resend Test Recipient");
+        // Test delivery to Nivara registration email
+        System.out.println("\n3. RECIPIENT DELIVERY TEST:");
+        String recipient = "heetoswal7@gmail.com";
+        System.out.println("\n   --> Sending to Registration Email: " + recipient);
+        sendSingleTest(session, sender, recipient, "Nivara Diagnostic Test - Registration Email");
 
         System.out.println("\n================================================================================");
         System.out.println("                     END OF SMTP DIAGNOSTIC REPORT                              ");
