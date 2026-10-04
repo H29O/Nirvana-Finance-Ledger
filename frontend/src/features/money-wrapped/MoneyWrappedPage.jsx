@@ -8,17 +8,21 @@ import { AlertCircle } from 'lucide-react';
 import {
   getRollingWrappedMonths,
   isMonthInRollingWindow,
+  isWrappedReleased,
+  getLastCalendarDay,
   MONTH_NAMES,
 } from './utils/wrappedDateUtils';
 
 export function MoneyWrappedPage() {
   const rollingMonths = getRollingWrappedMonths();
-  const latestMonth = rollingMonths[0] || { year: 2026, month: 10 };
+  const latestOpenable =
+    rollingMonths.find((m) => m.isReleased) ||
+    rollingMonths[0] || { year: 2026, month: 10 };
 
   // View state: 'landing' | 'story'
   const [viewMode, setViewMode] = useState('landing');
-  const [selectedYear, setSelectedYear] = useState(latestMonth.year);
-  const [selectedMonth, setSelectedMonth] = useState(latestMonth.month);
+  const [selectedYear, setSelectedYear] = useState(latestOpenable.year);
+  const [selectedMonth, setSelectedMonth] = useState(latestOpenable.month);
 
   const [wrappedData, setWrappedData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +49,13 @@ export function MoneyWrappedPage() {
   const handleSelectMonth = (year, month) => {
     if (!isMonthInRollingWindow(year, month)) {
       setError('Money Wrapped is only available for the rolling 3-month window.');
+      return;
+    }
+
+    if (!isWrappedReleased(year, month)) {
+      const lastDay = getLastCalendarDay(year, month);
+      const monthName = MONTH_NAMES[month];
+      setError(`${monthName} ${year} Wrapped is not available until ${monthName} ${lastDay}.`);
       return;
     }
 

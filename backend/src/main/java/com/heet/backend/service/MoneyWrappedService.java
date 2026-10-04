@@ -30,6 +30,7 @@ import com.heet.backend.repository.LoanRecordRepository;
 import com.heet.backend.repository.TransactionRepository;
 import com.heet.backend.security.SecurityUtils;
 import com.heet.backend.service.wrapped.MoneyWrappedInsightEngine;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.format.TextStyle;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -55,28 +59,73 @@ public class MoneyWrappedService {
     private final LoanRecordRepository loanRecordRepository;
     private final AnalyticsService analyticsService;
     private final MoneyWrappedInsightEngine insightEngine;
+    private final String timezoneName;
 
-    private Clock clock = Clock.systemDefaultZone();
+    private Clock clock;
 
     public MoneyWrappedService(
             TransactionRepository transactionRepository,
             LoanRecordRepository loanRecordRepository,
             AnalyticsService analyticsService,
             MoneyWrappedInsightEngine insightEngine) {
+        this(transactionRepository, loanRecordRepository, analyticsService, insightEngine, "Asia/Kolkata");
+    }
+
+    public MoneyWrappedService(
+            TransactionRepository transactionRepository,
+            LoanRecordRepository loanRecordRepository,
+            AnalyticsService analyticsService,
+            MoneyWrappedInsightEngine insightEngine,
+            @Value("${app.timezone:Asia/Kolkata}") String timezoneName) {
         this.transactionRepository = transactionRepository;
         this.loanRecordRepository = loanRecordRepository;
         this.analyticsService = analyticsService;
         this.insightEngine = insightEngine;
+        this.timezoneName = (timezoneName != null && !timezoneName.isBlank()) ? timezoneName : "Asia/Kolkata";
+        this.clock = Clock.system(getZoneId());
     }
 
     public void setClock(java.time.Clock clock) {
         this.clock = clock;
     }
 
+    public ZoneId getZoneId() {
+        try {
+            if (timezoneName != null && !timezoneName.isBlank()) {
+                return ZoneId.of(timezoneName);
+            }
+        } catch (Exception ignored) {
+        }
+        return ZoneId.systemDefault();
+    }
+
+    /**
+     * Checks if Money Wrapped is released and available for the given year and month.
+     * Available ONLY on or after the last calendar day of the month, within the rolling 3-month window.
+     */
+    public boolean isMoneyWrappedAvailable(int year, int month) {
+        try {
+            YearMonth yearMonth = YearMonth.of(year, month);
+            LocalDate today = LocalDate.now(clock != null ? clock : Clock.system(getZoneId()));
+            YearMonth currentYearMonth = YearMonth.from(today);
+            YearMonth earliestAllowed = currentYearMonth.minusMonths(2);
+
+            if (yearMonth.isAfter(currentYearMonth) || yearMonth.isBefore(earliestAllowed)) {
+                return false;
+            }
+
+            LocalDate endOfMonth = yearMonth.atEndOfMonth();
+            return !today.isBefore(endOfMonth);
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     @Transactional(readOnly = true)
     public MoneyWrappedResponse getMoneyWrapped(int year, int month) {
         YearMonth yearMonth = YearMonth.of(year, month);
-        YearMonth currentYearMonth = YearMonth.now(clock);
+        LocalDate today = LocalDate.now(clock != null ? clock : Clock.system(getZoneId()));
+        YearMonth currentYearMonth = YearMonth.from(today);
         YearMonth earliestAllowed = currentYearMonth.minusMonths(2);
 
         if (yearMonth.isAfter(currentYearMonth)) {
@@ -86,6 +135,14 @@ public class MoneyWrappedService {
             throw new IllegalArgumentException(String.format(
                     "Money Wrapped is only available for the rolling 3-month window (%s to %s)",
                     earliestAllowed, currentYearMonth));
+        }
+
+        LocalDate endOfMonth = yearMonth.atEndOfMonth();
+        if (today.isBefore(endOfMonth)) {
+            String monthName = yearMonth.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+            throw new IllegalArgumentException(String.format(
+                    "Money Wrapped for %s %d is not available until %s",
+                    monthName, yearMonth.getYear(), endOfMonth));
         }
 
         LocalDate startDate = yearMonth.atDay(1);

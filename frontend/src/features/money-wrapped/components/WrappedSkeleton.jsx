@@ -3,7 +3,7 @@ import Card from '../../../components/ui/Card';
 
 export function WrappedSkeleton() {
   return (
-    <Card className="p-8 sm:p-12 bg-white border border-slate-200/90 shadow-md rounded-3xl min-h-[520px] flex flex-col justify-between animate-pulse">
+    <Card className="p-8 sm:p-12 bg-white border border-slate-200/80 shadow-sm rounded-2xl min-h-[520px] flex flex-col justify-between animate-pulse">
       {/* Top Header Skeleton */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">

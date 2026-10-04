@@ -322,12 +322,30 @@ class MoneyWrappedServiceTest {
     }
 
     @Test
-    void getMoneyWrapped_CurrentMonth_IsAvailable() {
-        // Current month in clock is October 2026 (2026, 10)
+    void getMoneyWrapped_CurrentMonth_BeforeFinalDay_ThrowsIllegalArgumentException() {
+        // Current month in clock is October 2026 (2026-10-15)
+        // October has 31 days, so October 15 is before the final calendar day
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 10));
+
+        assertTrue(ex.getMessage().contains("Money Wrapped for October 2026 is not available until 2026-10-31"));
+    }
+
+    @Test
+    void getMoneyWrapped_CurrentMonth_OnFinalDay_IsAvailable() {
+        // Advance clock to October 31, 2026 (the last calendar day of October)
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-10-31T12:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
         when(analyticsService.getOverview(any(), any()))
                 .thenReturn(AnalyticsOverviewResponse.builder().build());
         when(analyticsService.getCategoryBreakdown(any(), any(), any()))
                 .thenReturn(List.of());
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
 
         MoneyWrappedResponse response = moneyWrappedService.getMoneyWrapped(2026, 10);
         assertNotNull(response);
@@ -401,14 +419,26 @@ class MoneyWrappedServiceTest {
 
         assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 8));
 
-        // Advance clock to November 2026 (2026-11-05)
+        // Advance clock to November 5, 2026 (2026-11-05)
         moneyWrappedService.setClock(java.time.Clock.fixed(
                 java.time.Instant.parse("2026-11-05T00:00:00Z"),
                 java.time.ZoneId.of("UTC")));
 
         // In November 2026:
-        // November 2026 (current) is now available!
-        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 11));
+        // October 2026 is 1 month ago and completed -> available!
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 10));
+
+        // September 2026 is 2 months ago and completed -> available!
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 9));
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 9));
+
+        // November 2026 is current month before Nov 30 -> unavailable!
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 11));
+        IllegalArgumentException exNov = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 11));
+        assertTrue(exNov.getMessage().contains("not available until 2026-11-30"));
+
         // August 2026 is now 3 months ago and excluded!
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 moneyWrappedService.getMoneyWrapped(2026, 8));
@@ -422,10 +452,177 @@ class MoneyWrappedServiceTest {
         when(analyticsService.getCategoryBreakdown(any(), any(), any()))
                 .thenReturn(List.of());
 
-        moneyWrappedService.getMoneyWrapped(2026, 10);
+        // August 2026 is available when clock is 2026-10-15
+        moneyWrappedService.getMoneyWrapped(2026, 8);
 
         // Verify transactionRepository delete is NEVER called
         verify(transactionRepository, never()).delete(any());
         verify(transactionRepository, never()).deleteAll(any());
+    }
+
+    // ==========================================
+    // CALENDAR-CORRECT AVAILABILITY RULE TESTS
+    // ==========================================
+
+    @Test
+    void availability_February28_NonLeapYear_IsAvailable() {
+        // 2027 is a non-leap year (February has 28 days)
+        // On Feb 28, 2027, February Wrapped must be available
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2027-02-28T10:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2027, 2));
+
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2027, 2));
+    }
+
+    @Test
+    void availability_February28_LeapYear_IsUnavailable() {
+        // 2028 is a leap year (February has 29 days)
+        // On Feb 28, 2028, February Wrapped must NOT be available yet
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2028-02-28T10:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2028, 2));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2028, 2));
+        assertTrue(ex.getMessage().contains("Money Wrapped for February 2028 is not available until 2028-02-29"));
+    }
+
+    @Test
+    void availability_February29_LeapYear_IsAvailable() {
+        // 2028 is a leap year (February has 29 days)
+        // On Feb 29, 2028, February Wrapped must be available
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2028-02-29T15:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2028, 2));
+
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2028, 2));
+    }
+
+    @Test
+    void availability_April29_Unavailable_April30_Available() {
+        // April has 30 days
+        // April 29 -> unavailable
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-04-29T23:59:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 4));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 4));
+        assertTrue(ex.getMessage().contains("not available until 2026-04-30"));
+
+        // April 30 -> available
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-04-30T00:01:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 4));
+    }
+
+    @Test
+    void availability_June30_Available() {
+        // June has 30 days. On June 30, June Wrapped is available
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-06-30T12:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 6));
+    }
+
+    @Test
+    void availability_October30_Unavailable_October31_Available() {
+        // October has 31 days
+        // October 30 -> unavailable
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-10-30T23:59:59Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
+
+        // October 31 -> available
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-10-31T00:00:01Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
+    }
+
+    @Test
+    void availability_December30_Unavailable_December31_Available() {
+        // December has 31 days
+        // December 30 -> unavailable
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-12-30T23:59:59Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 12));
+
+        // December 31 -> available
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-12-31T08:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 12));
+    }
+
+    @Test
+    void availability_January1_Rollover_PreviousDecemberAvailable_JanuaryUnavailable() {
+        // Year transition: January 1, 2027
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2027-01-01T00:05:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        // December 2026 remains completed and available (1 month ago)
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 12));
+
+        // November 2026 remains completed and available (2 months ago)
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 11));
+
+        // January 2027 (current month) is unavailable until January 31, 2027
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2027, 1));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2027, 1));
+        assertTrue(ex.getMessage().contains("Money Wrapped for January 2027 is not available until 2027-01-31"));
+
+        // October 2026 is now 3 months ago and excluded
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
+    }
+
+    @Test
+    void availability_CompletedMonthRemainsAccessibleAfterMonthChanges() {
+        // Month transition: November 1, 2026
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-11-01T00:01:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        // October 2026 is completed and remains available
+        assertTrue(moneyWrappedService.isMoneyWrappedAvailable(2026, 10));
+
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 10));
+
+        // November 2026 is unavailable until November 30
+        assertFalse(moneyWrappedService.isMoneyWrappedAvailable(2026, 11));
     }
 }

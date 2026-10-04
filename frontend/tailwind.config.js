@@ -8,14 +8,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#090d16',
-        surface: {
-          DEFAULT: '#0f172a',
-          subtle: '#111c35',
-          elevated: '#172342',
-          border: '#1e293b',
-          'border-subtle': '#162032',
-        },
         brand: {
           50: '#eef2ff',
           100: '#e0e7ff',
@@ -55,11 +47,21 @@ export default {
           'Menlo',
           'monospace',
         ],
+        tanker: [
+          'Tanker',
+          'sans-serif',
+        ],
+        satoshi: [
+          'Satoshi',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'sans-serif',
+        ],
       },
       boxShadow: {
-        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.3)',
-        'card': '0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.2)',
-        'elevated': '0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 4px 10px -2px rgba(0, 0, 0, 0.3)',
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        'elevated': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
       }
     },
   },

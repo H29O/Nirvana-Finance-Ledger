@@ -1,3 +1,5 @@
+@import url('https://api.fontshare.com/v2/css?f[]=tanker@400&f[]=satoshi@400,500,600,700,900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -41,7 +43,51 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* Dedicated Story-Level Typography Scope (activates ONLY inside open Wrapped Story) */
+  .story-typography {
+    font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .story-typography .font-tanker,
+  .story-typography .story-headline {
+    font-family: 'Tanker', sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  .story-typography .font-satoshi {
+    font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
   .text-subtle {
     color: #64748b;
+  }
+
+  /* Restrained, purposeful subtle animations */
+  .animate-fade-in {
+    animation: fadeIn 0.15s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.15s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }

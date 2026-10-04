@@ -1,24 +1,27 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { formatCurrency } from '../../../../lib/formatters';
-import { Sparkles, Calendar, Store, ArrowRight, Coffee, HandCoins } from 'lucide-react';
-import Button from '../../../../components/ui/Button';
+import { Zap, Coffee, Sparkles } from 'lucide-react';
+import { WrappedBackground } from '../decorations/WrappedBackground';
+import { useWrappedAnimation } from '../../utils/useWrappedAnimation';
 
 export function StoryHighlights({
   spendingSpikes,
-  merchantAnalysis,
   smallPurchases,
-  debtStatistics,
   monthName,
   onNext,
 }) {
+  const containerRef = useRef(null);
+  useWrappedAnimation(containerRef, [spendingSpikes, smallPurchases, monthName]);
+
   const peakDay = spendingSpikes?.peakSpendingDay;
-  const topMerchant = merchantAnalysis?.topMerchants?.[0];
   const microPurchases = smallPurchases;
 
-  const hasPeakDay = peakDay && Number(peakDay.amount || 0) > 0;
-  const hasTopMerchant = topMerchant && Number(topMerchant.totalSpent || 0) > 0;
+  const peakAmount = Number(peakDay?.totalAmount || peakDay?.amount || 0);
+  const hasPeakDay = peakDay && peakAmount > 0;
   const hasSmallPurchases =
     microPurchases && Number(microPurchases.totalAmount || 0) > 0;
+  const smallCount =
+    microPurchases?.transactionCount ?? microPurchases?.count ?? 0;
 
   // Format peak day date nicely
   let peakDateFormatted = null;
@@ -35,106 +38,103 @@ export function StoryHighlights({
   }
 
   return (
-    <div className="flex flex-col items-center justify-between min-h-[420px] sm:min-h-[460px] text-center p-4 sm:p-8 space-y-6">
+    <div
+      ref={containerRef}
+      className="relative flex-1 flex flex-col justify-between p-6 sm:p-8 text-left select-none overflow-hidden h-full text-slate-900"
+    >
+      <WrappedBackground mood="highlights" />
+
       {/* Top Tag */}
-      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-100">
-        <Sparkles className="w-3.5 h-3.5" />
-        <span>Highlights & Habits</span>
+      <div data-animate="tag" className="relative z-10 pt-2">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-satoshi font-bold uppercase tracking-widest bg-sky-100/90 text-sky-900 border border-sky-300/60 shadow-2xs">
+          <Zap className="w-3.5 h-3.5 text-sky-600" />
+          <span>Chapter 5 • Highlights & Spikes</span>
+        </span>
       </div>
 
-      {/* Main Highlights Content */}
-      <div className="space-y-4 max-w-lg mx-auto my-auto animate-slide-up w-full">
-        <span className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-slate-400 block">
-          Notable Moments in {monthName}
-        </span>
+      {/* Main Content as a Connected Timeline Sequence */}
+      <div className="relative z-10 my-auto py-4 space-y-6">
+        <div data-animate="headline" className="space-y-1">
+          <p className="text-xs font-satoshi font-semibold uppercase tracking-wider text-slate-400">
+            Outflow Peaks & Patterns
+          </p>
+          <h2 className="font-tanker text-3xl sm:text-4xl text-slate-900 tracking-wide uppercase leading-tight">
+            Moments that defined {monthName}.
+          </h2>
+        </div>
 
-        <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto text-left">
-          {/* Peak Spending Day */}
+        {/* Connected Visual Sequence */}
+        <div className="relative pl-6 space-y-5 border-l-2 border-sky-300/60 ml-2 pt-1 font-satoshi">
+          {/* Moment 1: Peak Spending Day */}
           {hasPeakDay && (
-            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 shrink-0 mt-0.5">
-                <Calendar className="w-4 h-4" />
+            <div data-animate="item" className="relative space-y-1">
+              {/* Glowing Timeline Node */}
+              <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-sky-500 border-2 border-white shadow-xs ring-4 ring-sky-200/50" />
+
+              <span className="text-[10px] font-satoshi font-bold uppercase tracking-wider text-sky-700 block">
+                Peak Outflow Day • {peakDateFormatted}
+              </span>
+
+              <div className="text-2xl sm:text-3xl font-satoshi font-black font-tabular text-slate-900 tracking-tight">
+                {formatCurrency(peakAmount)}
               </div>
-              <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Biggest Spending Day
-                </span>
-                <p className="text-sm font-extrabold text-slate-900">
-                  {peakDateFormatted}
-                </p>
-                <p className="text-xs text-slate-600 font-tabular font-semibold">
-                  {formatCurrency(peakDay.amount)}{' '}
-                  <span className="text-slate-400 font-normal">
-                    ({peakDay.transactionCount}{' '}
-                    {peakDay.transactionCount === 1 ? 'transaction' : 'transactions'})
-                  </span>
-                </p>
-              </div>
+
+              <p className="text-xs font-satoshi font-normal text-slate-500">
+                Highest single-day outflow ({peakDay.transactionCount}{' '}
+                {peakDay.transactionCount === 1
+                  ? 'transaction'
+                  : 'transactions'}
+                ).
+              </p>
             </div>
           )}
 
-          {/* Top Merchant */}
-          {hasTopMerchant && (
-            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 shrink-0 mt-0.5">
-                <Store className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Top Frequent Spot
-                </span>
-                <p className="text-sm font-extrabold text-slate-900 truncate">
-                  {topMerchant.merchantName}
-                </p>
-                <p className="text-xs text-slate-600 font-tabular font-semibold">
-                  {formatCurrency(topMerchant.totalSpent)}{' '}
-                  <span className="text-slate-400 font-normal">
-                    ({topMerchant.transactionCount} visits)
-                  </span>
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Micro Purchases */}
+          {/* Moment 2: Small Purchases */}
           {hasSmallPurchases && (
-            <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm flex items-start gap-3">
-              <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 shrink-0 mt-0.5">
-                <Coffee className="w-4 h-4" />
+            <div data-animate="item" className="relative space-y-1 pt-1">
+              {/* Glowing Timeline Node */}
+              <div className="absolute -left-[31px] top-2 w-4 h-4 rounded-full bg-amber-500 border-2 border-white shadow-xs ring-4 ring-amber-200/50" />
+
+              <span className="text-[10px] font-satoshi font-bold uppercase tracking-wider text-amber-700 block">
+                Micro-Purchases • Under {formatCurrency(microPurchases.threshold || 100)}
+              </span>
+
+              <div className="text-2xl sm:text-3xl font-satoshi font-black font-tabular text-slate-900 tracking-tight">
+                {formatCurrency(microPurchases.totalAmount)}
               </div>
-              <div className="min-w-0">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Small Treats & Purchases
-                </span>
-                <p className="text-sm font-extrabold text-slate-900 font-tabular">
-                  {formatCurrency(microPurchases.totalAmount)}
-                </p>
-                <p className="text-xs text-slate-500 font-medium">
-                  {microPurchases.count} transactions under ₹20
-                </p>
-              </div>
+
+              <p className="text-xs font-satoshi font-normal text-slate-500">
+                Quick spends and small treats across {smallCount} transactions.
+              </p>
             </div>
           )}
 
-          {!hasPeakDay && !hasTopMerchant && !hasSmallPurchases && (
-            <div className="p-4 text-center text-xs text-slate-400">
-              No standout spikes or habits logged for this period.
+          {!hasPeakDay && !hasSmallPurchases && (
+            <div className="relative py-4 text-xs text-slate-400">
+              No standout spikes or micro-purchase habits logged for {monthName}.
             </div>
           )}
         </div>
       </div>
 
-      {/* CTA */}
-      <div className="pt-2 animate-fade-in w-full max-w-xs">
-        <Button
-          variant="outline"
-          size="md"
-          onClick={onNext}
-          className="w-full text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 py-2.5 rounded-xl border-slate-200 hover:bg-slate-50"
+      {/* Tap Next Indicator */}
+      <div
+        data-animate="footer"
+        className="relative z-10 pt-4 pb-2 flex items-center justify-between border-t border-stone-200/70"
+      >
+        <span className="text-xs text-slate-500 font-satoshi">
+          Next: Final summary
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
+          className="text-xs font-bold text-sky-800 hover:text-sky-950 px-3.5 py-1.5 rounded-lg bg-sky-200/80 hover:bg-sky-200 transition-colors shadow-2xs"
         >
-          <span>Continue</span>
-          <ArrowRight className="w-4 h-4" />
-        </Button>
+          Next →
+        </button>
       </div>
     </div>
   );
