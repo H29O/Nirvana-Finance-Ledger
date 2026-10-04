@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -55,6 +56,8 @@ public class MoneyWrappedService {
     private final AnalyticsService analyticsService;
     private final MoneyWrappedInsightEngine insightEngine;
 
+    private Clock clock = Clock.systemDefaultZone();
+
     public MoneyWrappedService(
             TransactionRepository transactionRepository,
             LoanRecordRepository loanRecordRepository,
@@ -66,9 +69,25 @@ public class MoneyWrappedService {
         this.insightEngine = insightEngine;
     }
 
+    public void setClock(java.time.Clock clock) {
+        this.clock = clock;
+    }
+
     @Transactional(readOnly = true)
     public MoneyWrappedResponse getMoneyWrapped(int year, int month) {
         YearMonth yearMonth = YearMonth.of(year, month);
+        YearMonth currentYearMonth = YearMonth.now(clock);
+        YearMonth earliestAllowed = currentYearMonth.minusMonths(2);
+
+        if (yearMonth.isAfter(currentYearMonth)) {
+            throw new IllegalArgumentException("Money Wrapped is not available for future months");
+        }
+        if (yearMonth.isBefore(earliestAllowed)) {
+            throw new IllegalArgumentException(String.format(
+                    "Money Wrapped is only available for the rolling 3-month window (%s to %s)",
+                    earliestAllowed, currentYearMonth));
+        }
+
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
         LocalDateTime startDateTime = startDate.atStartOfDay();

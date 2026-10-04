@@ -43,74 +43,54 @@ export function getCurrentYearMonth() {
 }
 
 /**
- * Check if a given year and month is strictly completed (i.e. strictly before current month)
- * @param {number} year
- * @param {number} month
- * @returns {boolean}
+ * Get the rolling 3 months available for Money Wrapped:
+ * [Current Month, 1 Month Ago, 2 Months Ago]
+ *
+ * For example, if current month is October 2026:
+ * Returns October 2026, September 2026, August 2026.
+ *
+ * @returns {Array<{ year: number, month: number, label: string, monthName: string, shortMonthName: string, key: string, isCurrent: boolean }>}
  */
-export function isMonthCompleted(year, month) {
-  const current = getCurrentYearMonth();
-  if (year < current.year) return true;
-  if (year === current.year && month < current.month) return true;
-  return false;
-}
-
-/**
- * Get a list of recent completed months for the user to browse
- * @param {number} [limit=12]
- * @returns {Array<{ year: number, month: number, label: string, monthName: string, key: string }>}
- */
-export function getAvailableCompletedMonths(limit = 12) {
-  const current = getCurrentYearMonth();
+export function getRollingWrappedMonths() {
+  const now = new Date();
   const months = [];
 
-  let curYear = current.year;
-  let curMonth = current.month - 1; // Start from previous month
+  for (let offset = 0; offset < 3; offset++) {
+    // Subtract offset months from current month
+    const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    const yr = d.getFullYear();
+    const mo = d.getMonth() + 1;
+    const monthName = MONTH_NAMES[mo];
+    const shortMonthName = MONTH_SHORT_NAMES[mo];
 
-  if (curMonth < 1) {
-    curMonth = 12;
-    curYear -= 1;
-  }
-
-  while (months.length < limit && curYear >= 2020) {
-    const monthName = MONTH_NAMES[curMonth];
     months.push({
-      year: curYear,
-      month: curMonth,
+      year: yr,
+      month: mo,
       monthName,
-      label: `${monthName} ${curYear}`,
-      key: `${curYear}-${String(curMonth).padStart(2, '0')}`,
+      shortMonthName,
+      label: `${monthName} ${yr}`,
+      key: `${yr}-${String(mo).padStart(2, '0')}`,
+      isCurrent: offset === 0,
     });
-
-    curMonth -= 1;
-    if (curMonth < 1) {
-      curMonth = 12;
-      curYear -= 1;
-    }
   }
 
   return months;
 }
 
 /**
- * Get information regarding the upcoming/in-progress month
- * @returns {{ year: number, month: number, monthName: string, label: string, releaseDate: string, daysRemaining: number }}
+ * Check if a given year and month falls strictly inside the allowed rolling 3-month window
+ * @param {number} year
+ * @param {number} month
+ * @returns {boolean}
  */
-export function getIncompleteMonthInfo() {
-  const current = getCurrentYearMonth();
-  const now = new Date();
-  const nextMonthDate = new Date(current.year, current.month, 1);
-  const diffTime = nextMonthDate.getTime() - now.getTime();
-  const daysRemaining = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+export function isMonthInRollingWindow(year, month) {
+  const allowed = getRollingWrappedMonths();
+  return allowed.some((m) => m.year === year && m.month === month);
+}
 
-  const releaseMonthName = MONTH_NAMES[nextMonthDate.getMonth() + 1];
-
-  return {
-    year: current.year,
-    month: current.month,
-    monthName: MONTH_NAMES[current.month],
-    label: `${MONTH_NAMES[current.month]} ${current.year}`,
-    releaseDate: `${releaseMonthName} 1, ${nextMonthDate.getFullYear()}`,
-    daysRemaining,
-  };
+/**
+ * Legacy helper maintained for compatibility: returns the rolling 3 months
+ */
+export function getAvailableCompletedMonths() {
+  return getRollingWrappedMonths();
 }

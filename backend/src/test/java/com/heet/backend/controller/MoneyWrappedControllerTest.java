@@ -87,4 +87,15 @@ class MoneyWrappedControllerTest {
 
         assertEquals("Month must be between 1 and 12", ex.getMessage());
     }
+
+    @Test
+    void getMoneyWrapped_MonthOutsideRollingWindow_PropagatesServiceException() {
+        when(moneyWrappedService.getMoneyWrapped(eq(2026), eq(5)))
+                .thenThrow(new IllegalArgumentException("Money Wrapped is only available for the rolling 3-month window"));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedController.getMoneyWrapped(2026, 5));
+
+        assertTrue(ex.getMessage().contains("rolling 3-month window"));
+    }
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import Card from '../../../components/ui/Card';
 import { formatCurrency, formatPercentage } from '../../../lib/formatters';
-import { ArrowUpRight, ArrowDownRight, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ArrowLeftRight, TrendingUp } from 'lucide-react';
 
 export function DashboardFinancialSummary({ summary }) {
   const totalIncome = summary?.totalIncome ?? 0;
@@ -102,11 +102,11 @@ export function DashboardFinancialSummary({ summary }) {
             </div>
           </div>
 
-          {/* Transaction Count */}
+          {/* Total Transactions Count */}
           <div className="col-span-2 sm:col-span-1 space-y-1">
             <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-              <Wallet className="w-3 h-3 text-slate-400" />
-              <span>Transactions</span>
+              <ArrowLeftRight className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Total Transactions</span>
             </div>
             <div className="text-lg sm:text-xl font-bold text-slate-900 font-tabular">
               {totalTransactions}

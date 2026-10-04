@@ -38,6 +38,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -72,6 +73,11 @@ class MoneyWrappedServiceTest {
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(auth);
+
+        // Fixed clock simulating 2026-10-15 (October 2026)
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-10-15T00:00:00Z"),
+                java.time.ZoneId.of("UTC")));
     }
 
     @Test
@@ -246,7 +252,7 @@ class MoneyWrappedServiceTest {
     @Test
     void getMoneyWrapped_EmptyMonth_HandlesZeroStateGracefully() {
         int year = 2026;
-        int month = 7;
+        int month = 9;
 
         when(analyticsService.getOverview(any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(AnalyticsOverviewResponse.builder()
@@ -313,5 +319,113 @@ class MoneyWrappedServiceTest {
         verify(transactionRepository).findPaymentMethodSumsByUserId(eq(1L), eq(TransactionType.EXPENSE), any(), any());
         verify(transactionRepository).findTopMerchantsByUserId(eq(1L), eq(TransactionType.EXPENSE), any(), any(), any());
         verify(loanRecordRepository).findActiveLoanSummaryByUserId(eq(1L), eq(LoanStatus.ACTIVE));
+    }
+
+    @Test
+    void getMoneyWrapped_CurrentMonth_IsAvailable() {
+        // Current month in clock is October 2026 (2026, 10)
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        MoneyWrappedResponse response = moneyWrappedService.getMoneyWrapped(2026, 10);
+        assertNotNull(response);
+        assertEquals(2026, response.getYear());
+        assertEquals(10, response.getMonth());
+    }
+
+    @Test
+    void getMoneyWrapped_OneMonthAgo_IsAvailable() {
+        // 1 month ago is September 2026 (2026, 9)
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        MoneyWrappedResponse response = moneyWrappedService.getMoneyWrapped(2026, 9);
+        assertNotNull(response);
+        assertEquals(2026, response.getYear());
+        assertEquals(9, response.getMonth());
+    }
+
+    @Test
+    void getMoneyWrapped_TwoMonthsAgo_IsAvailable() {
+        // 2 months ago is August 2026 (2026, 8)
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        MoneyWrappedResponse response = moneyWrappedService.getMoneyWrapped(2026, 8);
+        assertNotNull(response);
+        assertEquals(2026, response.getYear());
+        assertEquals(8, response.getMonth());
+    }
+
+    @Test
+    void getMoneyWrapped_ThreeMonthsAgo_ThrowsIllegalArgumentException() {
+        // 3 months ago is July 2026 (2026, 7) - excluded
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 7));
+
+        assertTrue(ex.getMessage().contains("Money Wrapped is only available for the rolling 3-month window"));
+    }
+
+    @Test
+    void getMoneyWrapped_FourOrMoreMonthsAgo_ThrowsIllegalArgumentException() {
+        // 4+ months ago is May 2026 (2026, 5) - excluded
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 5));
+
+        assertTrue(ex.getMessage().contains("Money Wrapped is only available for the rolling 3-month window"));
+    }
+
+    @Test
+    void getMoneyWrapped_FutureMonth_ThrowsIllegalArgumentException() {
+        // Future month is November 2026 when clock is in October 2026
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 11));
+
+        assertEquals("Money Wrapped is not available for future months", ex.getMessage());
+    }
+
+    @Test
+    void getMoneyWrapped_RollingTransitionWhenCalendarMonthChanges() {
+        // When clock is in October 2026:
+        // August 2026 is available
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 8));
+
+        // Advance clock to November 2026 (2026-11-05)
+        moneyWrappedService.setClock(java.time.Clock.fixed(
+                java.time.Instant.parse("2026-11-05T00:00:00Z"),
+                java.time.ZoneId.of("UTC")));
+
+        // In November 2026:
+        // November 2026 (current) is now available!
+        assertDoesNotThrow(() -> moneyWrappedService.getMoneyWrapped(2026, 11));
+        // August 2026 is now 3 months ago and excluded!
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                moneyWrappedService.getMoneyWrapped(2026, 8));
+        assertTrue(ex.getMessage().contains("Money Wrapped is only available for the rolling 3-month window"));
+    }
+
+    @Test
+    void getMoneyWrapped_UnderlyingTransactionsRemainUntouched() {
+        when(analyticsService.getOverview(any(), any()))
+                .thenReturn(AnalyticsOverviewResponse.builder().build());
+        when(analyticsService.getCategoryBreakdown(any(), any(), any()))
+                .thenReturn(List.of());
+
+        moneyWrappedService.getMoneyWrapped(2026, 10);
+
+        // Verify transactionRepository delete is NEVER called
+        verify(transactionRepository, never()).delete(any());
+        verify(transactionRepository, never()).deleteAll(any());
     }
 }

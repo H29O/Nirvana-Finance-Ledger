@@ -41,12 +41,6 @@ export const NAVIGATION_ITEMS = [
     description: 'OCR & digital receipts',
   },
   {
-    name: 'Analytics',
-    path: '/analytics',
-    icon: 'BarChart3',
-    description: 'Deep financial trends & breakdowns',
-  },
-  {
     name: 'Money Wrapped',
     path: '/money-wrapped',
     icon: 'Sparkles',
@@ -56,6 +50,6 @@ export const NAVIGATION_ITEMS = [
     name: 'Settings',
     path: '/settings',
     icon: 'Settings',
-    description: 'Preferences & account',
+    description: 'Account profile & session',
   },
 ];

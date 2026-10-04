@@ -17,7 +17,6 @@ import TransactionsPage from '../features/transactions/TransactionsPage';
 import CategoriesPage from '../features/categories/CategoriesPage';
 import LendingPage from '../features/lending/LendingPage';
 import ReceiptsPage from '../features/receipts/ReceiptsPage';
-import AnalyticsPage from '../features/analytics/AnalyticsPage';
 import MoneyWrappedPage from '../features/money-wrapped/MoneyWrappedPage';
 import SettingsPage from '../features/settings/SettingsPage';
 import NotFoundPage from '../features/common/NotFoundPage';
@@ -64,7 +63,6 @@ export function AppRoutes() {
         <Route path="categories" element={<CategoriesPage />} />
         <Route path="lending" element={<LendingPage />} />
         <Route path="receipts" element={<ReceiptsPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="money-wrapped" element={<MoneyWrappedPage />} />
         <Route path="settings" element={<SettingsPage />} />
 

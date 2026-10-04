@@ -8,7 +8,6 @@ import {
   Tags,
   HandCoins,
   Receipt,
-  BarChart3,
   Sparkles,
   Settings,
   X,
@@ -20,7 +19,6 @@ const ICON_MAP = {
   Tags,
   HandCoins,
   Receipt,
-  BarChart3,
   Sparkles,
   Settings,
 };

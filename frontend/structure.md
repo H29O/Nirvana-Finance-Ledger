@@ -8,7 +8,6 @@ frontend/
 │   │   ├── categories/
 │   │   ├── lending/
 │   │   ├── receipts/
-│   │   ├── analytics/
 │   │   └── money-wrapped/
 │   ├── components/           # reusable UI primitives
 │   ├── layouts/

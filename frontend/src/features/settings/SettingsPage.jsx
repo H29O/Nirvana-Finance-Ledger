@@ -9,11 +9,7 @@ import Input from '../../components/ui/Input';
 import { formatDate } from '../../lib/formatters';
 import {
   User,
-  Mail,
   Calendar,
-  Shield,
-  IndianRupee,
-  Sun,
   Download,
   LogOut,
   CheckCircle2,
@@ -21,9 +17,6 @@ import {
   AlertTriangle,
   Trash2,
   Smartphone,
-  Layers,
-  Sparkles,
-  Key,
 } from 'lucide-react';
 
 export function SettingsPage() {
@@ -165,7 +158,7 @@ export function SettingsPage() {
       {/* Page Header */}
       <PageHeader
         title="Settings"
-        subtitle="Manage your account and app preferences."
+        subtitle="Manage your account profile and session."
       />
 
       {/* Global Error Banner */}
@@ -204,7 +197,7 @@ export function SettingsPage() {
 
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Active Account</span>
+            <span>{profile?.emailVerified ? 'Verified Account' : 'Active Account'}</span>
           </span>
         </CardHeader>
 
@@ -225,7 +218,7 @@ export function SettingsPage() {
               </div>
 
               {/* User Details Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 w-full text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1 w-full text-xs">
                 <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-100">
                   <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
                     Full Name
@@ -253,150 +246,50 @@ export function SettingsPage() {
                     <span>{profile?.createdAt ? formatDate(profile.createdAt) : '—'}</span>
                   </p>
                 </div>
-
-                <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                    Account ID
-                  </span>
-                  <p className="text-xs font-semibold text-slate-700 font-mono pt-0.5">
-                    #{profile?.id ?? '—'}
-                  </p>
-                </div>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* 2. Preferences Section */}
-      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
-        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-600" />
-              <span>App Preferences & Standards</span>
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
-              Configured ledger standards and presentation defaults
-            </CardDescription>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0 space-y-4">
-          {/* Currency Preference */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0">
-                <IndianRupee className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">
-                  Primary Currency
-                </h4>
-                <p className="text-[11px] text-slate-500">
-                  Default currency formatting applied to all ledger records and reports
-                </p>
-              </div>
-            </div>
-
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-800 shadow-sm shrink-0 self-start sm:self-center font-tabular">
-              <span>Indian Rupee (₹ INR)</span>
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 3. PWA & Installation Section */}
-      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
-        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-indigo-600" />
-              <span>Progressive Web App (PWA)</span>
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
-              Offline caching and standalone device installation
-            </CardDescription>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+      {/* 2. Device App Installation (Shown only when install prompt is available) */}
+      {deferredPrompt && !isAppInstalled && (
+        <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-bold text-slate-900">
-                  Device Application Status
-                </h4>
-                {isAppInstalled && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    Standalone Installed
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500 max-w-lg leading-relaxed">
-                Finance Ledger uses service workers to cache essential resources for offline performance and quick mobile startup.
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-indigo-600" />
+                <span>Install Application</span>
+              </h3>
+              <p className="text-xs text-slate-500">
+                Install Nivara on this device for quick access from your desktop or home screen
               </p>
             </div>
 
-            {/* Install Button if browser triggered prompt */}
-            {deferredPrompt && !isAppInstalled && (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleInstallApp}
-                isLoading={isInstalling}
-                className="text-xs flex items-center gap-1.5 shrink-0 shadow-sm"
-              >
-                <Download className="w-4 h-4" />
-                <span>Install App</span>
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleInstallApp}
+              isLoading={isInstalling}
+              className="text-xs flex items-center gap-1.5 shadow-sm shrink-0 self-start sm:self-center"
+            >
+              <Download className="w-4 h-4" />
+              <span>Install App</span>
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </Card>
+      )}
 
-      {/* 4. Security & Authentication Section */}
-      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-6">
-        <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between border-b border-slate-100">
-          <div>
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-indigo-600" />
-              <span>Security & Session</span>
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-0.5">
-              Active authentication session and token integrity
-            </CardDescription>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-            <div className="space-y-1">
-              <h4 className="font-bold text-slate-900">
-                Session Authentication Mode
-              </h4>
-              <p className="text-[11px] text-slate-500">
-                Stateless JWT Bearer Token with automatic authorization header injection
-              </p>
-            </div>
-
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0 self-start sm:self-center">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Authenticated</span>
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 5. Account Actions / Logout Section */}
-      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-4">
+      {/* 3. Account Session Actions / Logout Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              Account Session Actions
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <LogOut className="w-4 h-4 text-indigo-600" />
+              <span>Account Session</span>
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Safely terminate your current session on this browser
+              Safely sign out of your current session on this browser
             </p>
           </div>
 
@@ -412,8 +305,8 @@ export function SettingsPage() {
         </div>
       </Card>
 
-      {/* 6. Danger Zone Section */}
-      <Card className="p-6 md:p-7 bg-white border border-rose-200 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)] space-y-4">
+      {/* 4. Danger Zone Section */}
+      <Card className="p-6 md:p-7 bg-white border border-rose-200 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-rose-600 flex items-center gap-2">

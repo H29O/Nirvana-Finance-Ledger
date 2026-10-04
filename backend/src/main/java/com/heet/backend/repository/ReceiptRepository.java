@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -23,6 +25,8 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
     boolean existsByTransactionId(Long transactionId);
 
     boolean existsByTransactionIdAndIdNot(Long transactionId, Long id);
+
+    List<Receipt> findByUploadedAtBefore(LocalDateTime cutoff);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM Receipt r WHERE r.user.id = :userId")

@@ -1,25 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import wrappedService from '../../services/wrapped.service';
 import WrappedLanding from './components/WrappedLanding';
-import WrappedLocked from './components/WrappedLocked';
 import WrappedStory from './components/WrappedStory';
 import WrappedSkeleton from './components/WrappedSkeleton';
 import Button from '../../components/ui/Button';
 import { AlertCircle } from 'lucide-react';
 import {
-  isMonthCompleted,
-  getAvailableCompletedMonths,
+  getRollingWrappedMonths,
+  isMonthInRollingWindow,
   MONTH_NAMES,
 } from './utils/wrappedDateUtils';
 
 export function MoneyWrappedPage() {
-  const completedMonths = getAvailableCompletedMonths(12);
-  const latestCompleted = completedMonths[0] || { year: 2026, month: 7 };
+  const rollingMonths = getRollingWrappedMonths();
+  const latestMonth = rollingMonths[0] || { year: 2026, month: 10 };
 
-  // View state: 'landing' | 'story' | 'locked'
+  // View state: 'landing' | 'story'
   const [viewMode, setViewMode] = useState('landing');
-  const [selectedYear, setSelectedYear] = useState(latestCompleted.year);
-  const [selectedMonth, setSelectedMonth] = useState(latestCompleted.month);
+  const [selectedYear, setSelectedYear] = useState(latestMonth.year);
+  const [selectedMonth, setSelectedMonth] = useState(latestMonth.month);
 
   const [wrappedData, setWrappedData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,22 +43,15 @@ export function MoneyWrappedPage() {
   }, []);
 
   const handleSelectMonth = (year, month) => {
+    if (!isMonthInRollingWindow(year, month)) {
+      setError('Money Wrapped is only available for the rolling 3-month window.');
+      return;
+    }
+
     setSelectedYear(year);
     setSelectedMonth(month);
-
-    if (!isMonthCompleted(year, month)) {
-      setViewMode('locked');
-      setWrappedData(null);
-    } else {
-      setViewMode('story');
-      loadStoryData(year, month);
-    }
-  };
-
-  const handleOpenLatest = () => {
-    if (latestCompleted) {
-      handleSelectMonth(latestCompleted.year, latestCompleted.month);
-    }
+    setViewMode('story');
+    loadStoryData(year, month);
   };
 
   const handleBackToLanding = () => {
@@ -67,8 +59,6 @@ export function MoneyWrappedPage() {
     setWrappedData(null);
     setError('');
   };
-
-  const monthName = MONTH_NAMES[selectedMonth] || `Month ${selectedMonth}`;
 
   return (
     <div className="max-w-6xl mx-auto pb-12">
@@ -93,15 +83,6 @@ export function MoneyWrappedPage() {
       {/* View Mode Switching */}
       {viewMode === 'landing' && (
         <WrappedLanding onSelectMonth={handleSelectMonth} />
-      )}
-
-      {viewMode === 'locked' && (
-        <WrappedLocked
-          targetMonthName={monthName}
-          targetYear={selectedYear}
-          onOpenLatestCompleted={handleOpenLatest}
-          onBackToHub={handleBackToLanding}
-        />
       )}
 
       {viewMode === 'story' && (

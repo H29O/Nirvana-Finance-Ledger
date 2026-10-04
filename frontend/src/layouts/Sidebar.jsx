@@ -8,7 +8,6 @@ import {
   Tags,
   HandCoins,
   Receipt,
-  BarChart3,
   Sparkles,
   Settings,
   LogOut,
@@ -21,7 +20,6 @@ const ICON_MAP = {
   Tags,
   HandCoins,
   Receipt,
-  BarChart3,
   Sparkles,
   Settings,
 };
@@ -32,7 +30,6 @@ export const NAV_ITEMS = [
   { name: 'Categories', path: '/categories', icon: 'Tags' },
   { name: 'Lending & Borrowing', path: '/lending', icon: 'HandCoins' },
   { name: 'Receipt Vault', path: '/receipts', icon: 'Receipt' },
-  { name: 'Analytics', path: '/analytics', icon: 'BarChart3' },
   { name: 'Money Wrapped', path: '/money-wrapped', icon: 'Sparkles' },
   { name: 'Settings', path: '/settings', icon: 'Settings' },
 ];
