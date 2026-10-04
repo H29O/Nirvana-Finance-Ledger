@@ -40,6 +40,56 @@ export const authService = {
     const response = await apiClient.post('/auth/resend-verification', { email });
     return response.data;
   },
+
+  /**
+   * Request password reset link
+   * @param {{ email: string }} data
+   * @returns {Promise<{ message: string, emailDeliverySuccess: boolean }>}
+   */
+  async forgotPassword({ email }) {
+    const response = await apiClient.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  /**
+   * Validate reset token status before displaying reset form
+   * @param {string} token
+   * @returns {Promise<{ valid: boolean }>}
+   */
+  async validateResetToken(token) {
+    const response = await apiClient.get('/auth/validate-reset-token', {
+      params: { token },
+    });
+    return response.data;
+  },
+
+  /**
+   * Reset password using raw reset token
+   * @param {{ token: string, newPassword: string, confirmPassword: string }} data
+   * @returns {Promise<{ message: string, success: boolean }>}
+   */
+  async resetPassword({ token, newPassword, confirmPassword }) {
+    const response = await apiClient.post('/auth/reset-password', {
+      token,
+      newPassword,
+      confirmPassword,
+    });
+    return response.data;
+  },
+
+  /**
+   * Change password for authenticated user
+   * @param {{ currentPassword: string, newPassword: string, confirmPassword: string }} data
+   * @returns {Promise<{ message: string, success: boolean }>}
+   */
+  async changePassword({ currentPassword, newPassword, confirmPassword }) {
+    const response = await apiClient.post('/auth/change-password', {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    });
+    return response.data;
+  },
 };
 
 export default authService;

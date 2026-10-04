@@ -118,31 +118,44 @@ export function LoginPage() {
               required
             />
 
-            <Input
-              label="Password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              value={formData.password}
-              onChange={handleChange}
-              leftIcon={<Lock className="w-4 h-4" />}
-              rightIcon={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-0.5 rounded"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-slate-700 select-none">
+                  Password <span className="text-rose-500 ml-1">*</span>
+                </label>
+                <Link
+                  to="/forgot-password"
+                  state={{ email: formData.email }}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              }
-              required
-            />
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                value={formData.password}
+                onChange={handleChange}
+                leftIcon={<Lock className="w-4 h-4" />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-0.5 rounded"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                }
+                required
+              />
+            </div>
 
             <Button
               type="submit"

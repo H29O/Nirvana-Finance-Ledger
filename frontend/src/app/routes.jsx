@@ -10,6 +10,8 @@ import PublicRoute from '../components/common/PublicRoute';
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
 import VerifyEmailPage from '../features/auth/VerifyEmailPage';
+import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
+import ResetPasswordPage from '../features/auth/ResetPasswordPage';
 
 // Features
 import DashboardPage from '../features/dashboard/DashboardPage';
@@ -46,6 +48,22 @@ export function AppRoutes() {
         element={
           <PublicRoute>
             <VerifyEmailPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPasswordPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <PublicRoute>
+            <ResetPasswordPage />
           </PublicRoute>
         }
       />

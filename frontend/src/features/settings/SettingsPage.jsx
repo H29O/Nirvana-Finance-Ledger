@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import userService from '../../services/user.service';
+import authService from '../../services/auth.service';
 import PageHeader from '../../components/ui/PageHeader';
 import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
@@ -17,6 +18,12 @@ import {
   AlertTriangle,
   Trash2,
   Smartphone,
+  Lock,
+  KeyRound,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 
 export function SettingsPage() {
@@ -26,6 +33,22 @@ export function SettingsPage() {
   const [profile, setProfile] = useState(authUser);
   const [isLoading, setIsLoading] = useState(!authUser);
   const [error, setError] = useState('');
+
+  // Change password modal state
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const [isIncorrectCurrentPassword, setIsIncorrectCurrentPassword] = useState(false);
+  const [isSendingResetEmail, setIsSendingResetEmail] = useState(false);
+  const [resetEmailSentMessage, setResetEmailSentMessage] = useState('');
 
   // PWA install state
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -121,6 +144,88 @@ export function SettingsPage() {
   const handleConfirmLogout = () => {
     setIsLogoutModalOpen(false);
     logout();
+  };
+
+  const handleConfirmChangePassword = async (e) => {
+    e.preventDefault();
+    const { currentPassword, newPassword, confirmPassword } = changePasswordForm;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setChangePasswordError('Please fill in all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setChangePasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setChangePasswordError('New password and confirmation do not match.');
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      setChangePasswordError('New password must be different from your current password.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setChangePasswordError('');
+    setIsIncorrectCurrentPassword(false);
+
+    try {
+      await authService.changePassword({
+        currentPassword,
+        newPassword: newPassword.trim(),
+        confirmPassword: confirmPassword.trim(),
+      });
+      setIsChangePasswordModalOpen(false);
+      // Because sessions/JWTs are invalidated after password change, logout and redirect to login
+      logout();
+      navigate('/login', {
+        replace: true,
+        state: { message: 'Password changed successfully. Please log in with your new password.' },
+      });
+    } catch (err) {
+      const msg =
+        err.normalizedMessage ||
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        'Failed to change password. Please check your current password.';
+
+      setChangePasswordError(msg);
+      if (
+        msg.toLowerCase().includes('current password is incorrect') ||
+        msg.toLowerCase().includes('current password')
+      ) {
+        setIsIncorrectCurrentPassword(true);
+      }
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleForgotPasswordFromModal = async () => {
+    if (profile?.email) {
+      setIsSendingResetEmail(true);
+      setChangePasswordError('');
+      try {
+        await authService.forgotPassword({ email: profile.email });
+        setResetEmailSentMessage(
+          `We've sent a password reset link to ${profile.email}. Please check your inbox.`
+        );
+      } catch (err) {
+        setResetEmailSentMessage(
+          `We've sent a password reset link to ${profile.email}. Please check your inbox.`
+        );
+      } finally {
+        setIsSendingResetEmail(false);
+      }
+    } else {
+      setIsChangePasswordModalOpen(false);
+      navigate('/forgot-password');
+    }
   };
 
   const handleConfirmDeleteAccount = async () => {
@@ -280,7 +385,38 @@ export function SettingsPage() {
         </Card>
       )}
 
-      {/* 3. Account Session Actions / Logout Section */}
+      {/* 3. Password & Security Section */}
+      <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-indigo-600" />
+              <span>Password & Security</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Update your account password to keep your personal finance workspace secure
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setChangePasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+              setChangePasswordError('');
+              setIsIncorrectCurrentPassword(false);
+              setResetEmailSentMessage('');
+              setIsChangePasswordModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 shadow-sm self-start sm:self-center border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            <Lock className="w-4 h-4 text-slate-500" />
+            <span>Change Password</span>
+          </Button>
+        </div>
+      </Card>
+
+      {/* 4. Account Session Actions / Logout Section */}
       <Card className="p-6 md:p-7 bg-white border border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.03)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -481,6 +617,220 @@ export function SettingsPage() {
                 Delete Account Permanently
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isChangePasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
+            onClick={() => {
+              if (!isChangingPassword && !isSendingResetEmail) {
+                setIsChangePasswordModalOpen(false);
+                setChangePasswordError('');
+                setIsIncorrectCurrentPassword(false);
+                setResetEmailSentMessage('');
+              }
+            }}
+            aria-hidden="true"
+          />
+
+          {/* Modal Container */}
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 z-10 space-y-4 animate-scale-in">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Change Password
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Protect your account with a new secure password
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isChangingPassword && !isSendingResetEmail) {
+                    setIsChangePasswordModalOpen(false);
+                    setChangePasswordError('');
+                    setIsIncorrectCurrentPassword(false);
+                    setResetEmailSentMessage('');
+                  }
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {resetEmailSentMessage ? (
+              <div className="space-y-4 pt-2">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-emerald-900">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Password Reset Link Sent</span>
+                  </div>
+                  <p className="leading-relaxed">{resetEmailSentMessage}</p>
+                  <p className="text-emerald-700/90 text-[11px]">
+                    The reset link will expire in 15 minutes.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setIsChangePasswordModalOpen(false);
+                      setResetEmailSentMessage('');
+                    }}
+                    className="text-xs"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleConfirmChangePassword} className="space-y-4 pt-1">
+                {changePasswordError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 space-y-2 text-xs text-rose-700">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
+                      <span className="flex-1 font-medium">{changePasswordError}</span>
+                    </div>
+
+                    {isIncorrectCurrentPassword && (
+                      <div className="pt-2 border-t border-rose-200/80 flex items-center justify-between">
+                        <span className="text-[11px] text-rose-800">
+                          Forgotten your current password?
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleForgotPasswordFromModal}
+                          disabled={isSendingResetEmail}
+                          className="font-bold text-indigo-700 hover:text-indigo-900 underline text-xs transition-colors"
+                        >
+                          {isSendingResetEmail ? 'Sending link...' : 'Forgot password?'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Input
+                  label="Current Password"
+                  name="currentPassword"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  placeholder="Enter current password"
+                  autoComplete="current-password"
+                  value={changePasswordForm.currentPassword}
+                  onChange={(e) => {
+                    setChangePasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }));
+                    if (changePasswordError) setChangePasswordError('');
+                    if (isIncorrectCurrentPassword) setIsIncorrectCurrentPassword(false);
+                  }}
+                  leftIcon={<Lock className="w-4 h-4" />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((prev) => !prev)}
+                      className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-0.5 rounded"
+                      aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                  required
+                />
+
+                <Input
+                  label="New Password"
+                  name="newPassword"
+                  type={showNewPassword ? 'text' : 'password'}
+                  placeholder="Minimum 6 characters"
+                  autoComplete="new-password"
+                  value={changePasswordForm.newPassword}
+                  onChange={(e) => {
+                    setChangePasswordForm((prev) => ({ ...prev, newPassword: e.target.value }));
+                    if (changePasswordError) setChangePasswordError('');
+                  }}
+                  leftIcon={<Lock className="w-4 h-4" />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-0.5 rounded"
+                      aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                  helperText="Must be at least 6 characters"
+                  required
+                />
+
+                <Input
+                  label="Confirm New Password"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Re-enter new password"
+                  autoComplete="new-password"
+                  value={changePasswordForm.confirmPassword}
+                  onChange={(e) => {
+                    setChangePasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }));
+                    if (changePasswordError) setChangePasswordError('');
+                  }}
+                  leftIcon={<Lock className="w-4 h-4" />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="text-slate-400 hover:text-slate-600 focus:outline-none transition-colors p-0.5 rounded"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  }
+                  required
+                />
+
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsChangePasswordModalOpen(false);
+                      setChangePasswordError('');
+                      setIsIncorrectCurrentPassword(false);
+                    }}
+                    disabled={isChangingPassword}
+                    className="text-xs"
+                  >
+                    Cancel
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    isLoading={isChangingPassword}
+                    className="text-xs"
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
