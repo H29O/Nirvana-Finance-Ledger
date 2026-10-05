@@ -11,9 +11,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon.svg'],
       manifest: {
-        name: 'Finance Ledger',
-        short_name: 'Ledger',
-        description: 'Personal Finance Management System & Intelligent Ledger',
+        name: 'Nivara',
+        short_name: 'Nivara',
+        description: 'Nivara — Personal Finance Management & Intelligent Ledger',
         theme_color: '#090d16',
         background_color: '#090d16',
         display: 'standalone',

@@ -47,6 +47,9 @@ class TransactionServiceTest {
     @Mock
     private com.heet.backend.repository.ReceiptRepository receiptRepository;
 
+    @Mock
+    private com.heet.backend.repository.ReceiptOcrDataRepository receiptOcrDataRepository;
+
     @InjectMocks
     private TransactionService transactionService;
 

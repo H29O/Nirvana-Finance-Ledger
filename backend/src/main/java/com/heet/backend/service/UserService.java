@@ -20,6 +20,7 @@ public class UserService {
     private final CategoryRepository categoryRepository;
     private final LoanRecordRepository loanRecordRepository;
     private final EmailVerificationRepository emailVerificationRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final ReceiptStorageService receiptStorageService;
 
     public UserService(
@@ -30,6 +31,7 @@ public class UserService {
             CategoryRepository categoryRepository,
             LoanRecordRepository loanRecordRepository,
             EmailVerificationRepository emailVerificationRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
             ReceiptStorageService receiptStorageService) {
         this.userRepository = userRepository;
         this.receiptOcrDataRepository = receiptOcrDataRepository;
@@ -38,6 +40,7 @@ public class UserService {
         this.categoryRepository = categoryRepository;
         this.loanRecordRepository = loanRecordRepository;
         this.emailVerificationRepository = emailVerificationRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.receiptStorageService = receiptStorageService;
     }
 
@@ -94,7 +97,10 @@ public class UserService {
         // Step 6: Delete all email verification records for user (foreign keys reference user)
         emailVerificationRepository.deleteByUserId(userId);
 
-        // Step 7: Delete user account entity
+        // Step 7: Delete all password reset tokens for user (foreign keys reference user)
+        passwordResetTokenRepository.deleteByUserId(userId);
+
+        // Step 8: Delete user account entity
         userRepository.delete(user);
 
         log.info("Successfully deleted user id={} and all associated data permanently.", userId);

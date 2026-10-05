@@ -71,6 +71,7 @@ public class MoneyWrappedService {
         this(transactionRepository, loanRecordRepository, analyticsService, insightEngine, "Asia/Kolkata");
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public MoneyWrappedService(
             TransactionRepository transactionRepository,
             LoanRecordRepository loanRecordRepository,

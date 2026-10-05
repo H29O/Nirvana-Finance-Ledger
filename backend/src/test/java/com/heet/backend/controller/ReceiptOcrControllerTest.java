@@ -18,6 +18,8 @@ import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,5 +68,33 @@ class ReceiptOcrControllerTest {
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertNotNull(result.getBody());
         assertEquals(100L, result.getBody().getId());
+    }
+
+    @Test
+    void updateOcrData_Returns200OK() {
+        com.heet.backend.dto.request.UpdateReceiptOcrRequest request =
+                com.heet.backend.dto.request.UpdateReceiptOcrRequest.builder()
+                        .merchant("Corrected Merchant")
+                        .amount(new BigDecimal("150.00"))
+                        .date(LocalDate.of(2026, 9, 1))
+                        .build();
+
+        ReceiptOcrResponse updatedResponse = ReceiptOcrResponse.builder()
+                .id(100L)
+                .receiptId(10L)
+                .status(OcrStatus.COMPLETED)
+                .detectedMerchant("Corrected Merchant")
+                .detectedAmount(new BigDecimal("150.00"))
+                .detectedDate(LocalDate.of(2026, 9, 1))
+                .build();
+
+        when(receiptOcrService.updateOcrData(eq(10L), any())).thenReturn(updatedResponse);
+
+        ResponseEntity<ReceiptOcrResponse> result = receiptOcrController.updateOcrData(10L, request);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
+        assertNotNull(result.getBody());
+        assertEquals("Corrected Merchant", result.getBody().getDetectedMerchant());
+        assertEquals(new BigDecimal("150.00"), result.getBody().getDetectedAmount());
     }
 }

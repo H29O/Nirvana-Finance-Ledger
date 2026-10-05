@@ -32,6 +32,7 @@ export function ReceiptReviewModal({
   const [formData, setFormData] = useState({
     amount: '',
     merchant: '',
+    date: '',
     transactionType: 'EXPENSE',
     paymentMethod: 'DIGITAL',
     categoryId: '',
@@ -49,6 +50,7 @@ export function ReceiptReviewModal({
       setFormData({
         amount: ocrData?.detectedAmount != null ? String(ocrData.detectedAmount) : '',
         merchant: ocrData?.detectedMerchant || '',
+        date: ocrData?.detectedDate || new Date().toISOString().split('T')[0],
         transactionType: 'EXPENSE',
         paymentMethod: 'DIGITAL',
         categoryId: ocrData?.suggestedCategoryId ? String(ocrData.suggestedCategoryId) : '',
@@ -111,21 +113,54 @@ export function ReceiptReviewModal({
     setGeneralError('');
 
     try {
-      // 1. Create transaction with entrySource: 'RECEPT'
-      const createdTx = await transactionService.createTransaction({
-        amount: parseFloat(formData.amount),
-        transactionType: formData.transactionType,
-        paymentMethod: formData.paymentMethod,
-        entrySource: 'RECEPT',
-        merchant: formData.merchant.trim(),
-        notes: formData.notes.trim() || null,
-        categoryId: formData.categoryId ? Number(formData.categoryId) : null,
-      });
+      const selectedCategory = categories.find(
+        (c) => String(c.id) === String(formData.categoryId)
+      );
 
-      // 2. Automatically link receipt to new transaction
-      if (createdTx?.id) {
-        await receiptService.linkTransaction(receipt.id, createdTx.id);
+      const parsedAmount = parseFloat(formData.amount);
+      const parsedDate = formData.date ? `${formData.date}T00:00:00` : null;
+
+      let linkedTxId = receipt.transactionId;
+
+      if (linkedTxId) {
+        // Receipt is already linked to a transaction -> Update existing transaction to prevent duplicates
+        await transactionService.updateTransaction(linkedTxId, {
+          amount: parsedAmount,
+          transactionType: formData.transactionType,
+          paymentMethod: formData.paymentMethod,
+          entrySource: 'RECEPT',
+          merchant: formData.merchant.trim(),
+          notes: formData.notes.trim() || null,
+          categoryId: formData.categoryId ? Number(formData.categoryId) : null,
+          transactionDate: parsedDate,
+        });
+      } else {
+        // Receipt is not yet linked -> Create transaction and link it
+        const createdTx = await transactionService.createTransaction({
+          amount: parsedAmount,
+          transactionType: formData.transactionType,
+          paymentMethod: formData.paymentMethod,
+          entrySource: 'RECEPT',
+          merchant: formData.merchant.trim(),
+          notes: formData.notes.trim() || null,
+          categoryId: formData.categoryId ? Number(formData.categoryId) : null,
+          transactionDate: parsedDate,
+        });
+        linkedTxId = createdTx?.id;
+
+        if (linkedTxId) {
+          await receiptService.linkTransaction(receipt.id, linkedTxId);
+        }
       }
+
+      // Synchronize corrected OCR metadata to the Receipt record so Receipt Vault displays canonical values
+      await receiptService.updateOcrData(receipt.id, {
+        merchant: formData.merchant.trim(),
+        amount: parsedAmount,
+        date: formData.date || null,
+        categoryId: formData.categoryId ? Number(formData.categoryId) : null,
+        categoryName: selectedCategory ? selectedCategory.name : null,
+      });
 
       onSuccess();
       onClose();
@@ -134,7 +169,7 @@ export function ReceiptReviewModal({
         setErrors(err.validationErrors);
       }
       setGeneralError(
-        err.normalizedMessage || 'Failed to create and link transaction. Please try again.'
+        err.normalizedMessage || 'Failed to save and sync receipt. Please try again.'
       );
     } finally {
       setIsSubmitting(false);
@@ -165,10 +200,12 @@ export function ReceiptReviewModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                Review Extracted Receipt
+                {receipt.transactionId ? 'Review & Edit Receipt' : 'Review Extracted Receipt'}
               </h3>
               <p className="text-xs text-slate-500">
-                Verify detected values and suggested category before saving to ledger
+                {receipt.transactionId
+                  ? 'Update receipt details and synchronize with the linked transaction'
+                  : 'Verify detected values and suggested category before saving to ledger'}
               </p>
             </div>
           </div>
@@ -334,6 +371,27 @@ export function ReceiptReviewModal({
               />
             </div>
 
+            {/* Receipt / Transaction Date */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-slate-700">
+                  Date <span className="text-rose-500">*</span>
+                </label>
+                {ocrData?.detectedDate && (
+                  <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                    Detected
+                  </span>
+                )}
+              </div>
+              <Input
+                name="date"
+                type="date"
+                value={formData.date}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
             {/* Category Dropdown with Suggestion Badge */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -440,7 +498,7 @@ export function ReceiptReviewModal({
                 size="sm"
                 isLoading={isSubmitting}
               >
-                Create & Link Transaction
+                {receipt.transactionId ? 'Save & Sync Changes' : 'Create & Link Transaction'}
               </Button>
             </div>
           </form>

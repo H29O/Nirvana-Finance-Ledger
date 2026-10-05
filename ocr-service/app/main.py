@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Nivara Receipt OCR Service",
-    description="Local PaddleOCR microservice for Nivara Finance Ledger receipt processing",
+    description="Local PaddleOCR microservice for Nivara receipt processing",
     version="1.0.0",
     lifespan=lifespan
 )

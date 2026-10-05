@@ -3,7 +3,9 @@ import Card, { CardTitle, CardDescription } from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import { Receipt, Camera, UploadCloud, Sparkles } from 'lucide-react';
 
-export function ReceiptsEmptyState({ onScanClick }) {
+export function ReceiptsEmptyState({ onUploadClick, onScanClick }) {
+  const handleUpload = onUploadClick || onScanClick;
+
   return (
     <Card className="p-8 md:p-14 text-center bg-white border-slate-200/80 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
       <div className="max-w-md mx-auto space-y-6">
@@ -46,7 +48,7 @@ export function ReceiptsEmptyState({ onScanClick }) {
           <Button
             variant="primary"
             size="md"
-            onClick={onScanClick}
+            onClick={handleUpload}
             leftIcon={<UploadCloud className="w-4 h-4" />}
           >
             Scan / Upload First Receipt

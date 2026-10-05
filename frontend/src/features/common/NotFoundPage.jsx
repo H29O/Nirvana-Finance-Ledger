@@ -14,7 +14,7 @@ export function NotFoundPage() {
         <CardHeader className="p-0 space-y-1">
           <CardTitle className="text-xl font-bold text-slate-900">Page Not Found</CardTitle>
           <CardDescription className="text-xs text-slate-500">
-            The requested page does not exist in the Finance Ledger.
+            The requested page does not exist in Nivara.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0 pt-2">

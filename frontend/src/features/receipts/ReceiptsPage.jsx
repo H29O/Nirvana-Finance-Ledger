@@ -31,6 +31,7 @@ export function ReceiptsPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [currentPage, setCurrentPage] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Modals state
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -62,6 +63,7 @@ export function ReceiptsPage() {
         });
 
         setReceipts(data?.content || []);
+        setRefreshKey((k) => k + 1);
         setPageInfo({
           number: data?.number ?? 0,
           totalPages: data?.totalPages ?? 1,
@@ -259,14 +261,18 @@ export function ReceiptsPage() {
       {isLoading ? (
         <ReceiptsSkeleton />
       ) : receipts.length === 0 ? (
-        <ReceiptsEmptyState onUploadClick={() => setIsUploadOpen(true)} />
+        <ReceiptsEmptyState
+          onUploadClick={() => setIsUploadOpen(true)}
+          onScanClick={() => setIsUploadOpen(true)}
+        />
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {receipts.map((receipt) => (
               <ReceiptCard
-                key={receipt.id}
+                key={`${receipt.id}-${refreshKey}`}
                 receipt={receipt}
+                refreshKey={refreshKey}
                 onReviewOcr={handleReviewOcr}
                 onLinkClick={handleOpenLinkModal}
                 onUnlinkClick={handleUnlink}

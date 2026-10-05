@@ -6,10 +6,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import lombok.extern.slf4j.Slf4j;
 import java.time.DateTimeException;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -174,6 +176,20 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body);
         }
 
+        @ExceptionHandler(InvalidCurrentPasswordException.class)
+        public ResponseEntity<Map<String, String>> handleInvalidCurrentPasswordException(
+                        InvalidCurrentPasswordException exception) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(Map.of("error", exception.getMessage()));
+        }
+
+        @ExceptionHandler(PasswordResetException.class)
+        public ResponseEntity<Map<String, String>> handlePasswordResetException(
+                        PasswordResetException exception) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(Map.of("error", exception.getMessage()));
+        }
+
         @ExceptionHandler({ InvalidCredentialsException.class,
                         org.springframework.security.authentication.BadCredentialsException.class })
         public ResponseEntity<Map<String, String>> handleInvalidCredentialsException(
@@ -186,6 +202,7 @@ public class GlobalExceptionHandler {
         @ExceptionHandler(Exception.class)
         public ResponseEntity<Map<String, String>> handleGenericException(
                         Exception exception) {
+                log.error("Unhandled exception caught in GlobalExceptionHandler: ", exception);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                                 .body(Map.of("error", "An unexpected error occurred."));
         }

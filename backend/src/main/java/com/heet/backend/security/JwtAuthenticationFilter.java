@@ -39,11 +39,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = tokenProvider.getEmailFromToken(jwt);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                boolean isTokenValidForUser = true;
+                if (userDetails instanceof UserPrincipal userPrincipal && userPrincipal.getUser() != null) {
+                    java.time.LocalDateTime passwordChangedAt = userPrincipal.getUser().getPasswordChangedAt();
+                    if (passwordChangedAt != null) {
+                        java.util.Date issuedAt = tokenProvider.getIssuedAtFromToken(jwt);
+                        if (issuedAt != null) {
+                            java.time.Instant changedInstant = passwordChangedAt.atZone(java.time.ZoneId.systemDefault()).toInstant().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+                            java.time.Instant tokenIssuedInstant = issuedAt.toInstant().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+                            if (tokenIssuedInstant.isBefore(changedInstant)) {
+                                isTokenValidForUser = false;
+                                logger.info("Rejecting JWT issued before user's password change timestamp.");
+                            }
+                        }
+                    }
+                }
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (isTokenValidForUser) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);

@@ -5,6 +5,7 @@ import Card, { CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
+import NivaraBrand from '../../components/ui/NivaraLogo';
 import { Lock, AlertCircle, ArrowRight, Eye, EyeOff, CheckCircle2, RotateCcw } from 'lucide-react';
 
 export function ResetPasswordPage() {
@@ -127,26 +128,11 @@ export function ResetPasswordPage() {
     <div className="min-h-screen flex flex-col justify-center items-center px-4 py-12 bg-slate-50">
       {/* Brand Header */}
       <div className="w-full max-w-md mb-8 text-center space-y-2">
-        <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-indigo-50 border border-indigo-100 shadow-sm">
-          <svg className="w-8 h-8" viewBox="0 0 100 100" fill="none">
-            <rect width="100" height="100" rx="24" fill="#4f46e5" />
-            <path
-              d="M28 32C28 29.7909 29.7909 28 32 28H68C70.2091 28 72 29.7909 72 32V68C72 70.2091 70.2091 72 68 72H32C29.7909 72 28 70.2091 28 68V32Z"
-              stroke="#ffffff"
-              strokeWidth="4"
-              strokeLinejoin="round"
-            />
-            <path d="M38 42H62" stroke="#e0e7ff" strokeWidth="4" strokeLinecap="round" />
-            <path d="M38 52H52" stroke="#10b981" strokeWidth="4" strokeLinecap="round" />
-            <path d="M38 62H58" stroke="#ffffff" strokeWidth="4" strokeLinecap="round" />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Finance Ledger
-        </h1>
-        <p className="text-xs text-slate-500">
-          Create a new secure password
-        </p>
+        <NivaraBrand
+          size="lg"
+          layout="vertical"
+          subtitle="Create a new secure password"
+        />
       </div>
 
       {/* Card Container */}

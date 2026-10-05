@@ -44,6 +44,19 @@ public class JwtTokenProvider {
                 .getSubject();
     }
 
+    public Date getIssuedAtFromToken(String token) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(key)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload()
+                    .getIssuedAt();
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     public boolean validateToken(String token) {
         try {
             Jwts.parser()

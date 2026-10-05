@@ -18,13 +18,25 @@ public class EmailService {
     private final String fromEmail;
     private final String smtpHost;
     private final int smtpPort;
+    private final String frontendUrl;
 
+    public EmailService(
+            JavaMailSender mailSender,
+            String fromEmail,
+            String mailUsername,
+            String smtpHost,
+            int smtpPort) {
+        this(mailSender, fromEmail, mailUsername, smtpHost, smtpPort, "http://localhost:5173");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public EmailService(
             JavaMailSender mailSender,
             @Value("${app.mail.from:}") String fromEmail,
             @Value("${spring.mail.username:}") String mailUsername,
             @Value("${spring.mail.host:smtp.gmail.com}") String smtpHost,
-            @Value("${spring.mail.port:465}") int smtpPort) {
+            @Value("${spring.mail.port:465}") int smtpPort,
+            @Value("${app.frontend.url:http://localhost:5173}") String frontendUrl) {
         this.mailSender = mailSender;
         String resolvedFrom = (fromEmail != null && !fromEmail.isBlank()) ? fromEmail : mailUsername;
         if (resolvedFrom == null || resolvedFrom.isBlank()) {
@@ -37,6 +49,7 @@ public class EmailService {
         }
         this.smtpHost = smtpHost;
         this.smtpPort = smtpPort;
+        this.frontendUrl = (frontendUrl != null && !frontendUrl.isBlank()) ? frontendUrl.replaceAll("/+$", "") : "http://localhost:5173";
     }
 
     /**
@@ -198,6 +211,115 @@ public class EmailService {
                 </body>
                 </html>
                 """.formatted(otp);
+    }
+
+    /**
+     * Sends a password reset email to the user with a secure reset link.
+     *
+     * @param toEmail       recipient email address
+     * @param recipientName recipient name
+     * @param resetToken    cryptographically secure random token (raw)
+     */
+    public void sendPasswordResetEmail(String toEmail, String recipientName, String resetToken) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(toEmail);
+            helper.setSubject("Reset your Nivara password");
+
+            String resetUrl = frontendUrl + "/reset-password?token=" + resetToken;
+            String plainText = buildPasswordResetPlainText(recipientName, resetUrl);
+            String htmlText = buildPasswordResetHtml(recipientName, resetUrl);
+
+            helper.setText(plainText, htmlText);
+
+            mailSender.send(message);
+            log.info("Password reset email successfully dispatched to '{}' via {}:{}",
+                    maskEmail(toEmail), smtpHost, smtpPort);
+        } catch (Exception e) {
+            logSmtpDiagnostics(toEmail, e);
+            throw new com.heet.backend.exception.EmailDeliveryException(
+                    "Password reset email could not be sent. Please try again.", e);
+        }
+    }
+
+    private String buildPasswordResetPlainText(String recipientName, String resetUrl) {
+        String greeting = (recipientName != null && !recipientName.isBlank()) ? "Hello " + recipientName + ",\n\n" : "";
+        return "Nivara\n\n" +
+                "Reset your Nivara password\n\n" +
+                greeting +
+                "Someone requested a password reset for your Nivara account.\n\n" +
+                "Use the link below to create a new password:\n\n" +
+                resetUrl + "\n\n" +
+                "This link expires in 15 minutes.\n\n" +
+                "If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.\n";
+    }
+
+    private String buildPasswordResetHtml(String recipientName, String resetUrl) {
+        String greeting = (recipientName != null && !recipientName.isBlank())
+                ? "<p style=\"margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #334155; text-align: left;\">Hello <strong>" + recipientName + "</strong>,</p>"
+                : "";
+
+        return """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Reset your Nivara password</title>
+                </head>
+                <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+                  <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 40px 16px;">
+                    <tr>
+                      <td align="center">
+                        <table width="100%%" border="0" cellspacing="0" cellpadding="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+                          <!-- Header -->
+                          <tr>
+                            <td style="padding: 32px 32px 24px 32px; text-align: center; border-bottom: 1px solid #f1f5f9;">
+                              <div style="display: inline-block; padding: 10px 18px; border-radius: 12px; background-color: #eef2ff; color: #4f46e5; font-weight: 700; font-size: 20px; letter-spacing: -0.5px;">
+                                Nivara
+                              </div>
+                            </td>
+                          </tr>
+                          <!-- Content -->
+                          <tr>
+                            <td style="padding: 32px;">
+                              <h1 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #0f172a; text-align: center;">
+                                Reset your password
+                              </h1>
+                              %s
+                              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #64748b; text-align: center;">
+                                Someone requested a password reset for your Nivara account. Use the button below to create a new password.
+                              </p>
+                              <!-- Action Button -->
+                              <div style="text-align: center; margin-bottom: 28px;">
+                                <a href="%s" style="display: inline-block; background-color: #4f46e5; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 10px; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);">
+                                  Reset Password
+                                </a>
+                              </div>
+                              <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #94a3b8; text-align: center;">
+                                If the button above doesn't work, copy and paste this link into your browser:<br>
+                                <a href="%s" style="color: #4f46e5; word-break: break-all; text-decoration: underline;">%s</a>
+                              </p>
+                              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 20px;">
+                                <p style="margin: 0; font-size: 13px; color: #475569; text-align: center;">
+                                  ⏱️ This link expires in <strong>15 minutes</strong>.
+                                </p>
+                              </div>
+                              <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #94a3b8; text-align: center;">
+                                If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """.formatted(greeting, resetUrl, resetUrl, resetUrl);
     }
 
     private String maskEmail(String email) {

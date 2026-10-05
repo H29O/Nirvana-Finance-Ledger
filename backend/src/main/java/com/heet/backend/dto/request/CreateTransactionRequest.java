@@ -36,4 +36,18 @@ public class CreateTransactionRequest {
     private String merchant;
     private String notes;
     private Long categoryId;
+
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd['T'HH:mm[:ss]]")
+    private java.time.LocalDateTime transactionDate;
+
+    public CreateTransactionRequest(
+            BigDecimal amount,
+            TransactionType transactionType,
+            PaymentMethod paymentMethod,
+            EntrySource entrySource,
+            String merchant,
+            String notes,
+            Long categoryId) {
+        this(amount, transactionType, paymentMethod, entrySource, merchant, notes, categoryId, null);
+    }
 }

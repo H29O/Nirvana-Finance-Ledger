@@ -247,4 +247,37 @@ class ReceiptOcrServiceTest {
         assertEquals(new BigDecimal("50.00"), response.getDetectedAmount());
         assertNull(response.getFailureReason());
     }
+
+    @Test
+    void updateOcrData_Success_UpdatesAndReturnsCanonicalData() {
+        Category groceryCat = new Category();
+        groceryCat.setId(30L);
+        groceryCat.setName("Groceries");
+        groceryCat.setUser(testUser);
+
+        when(receiptRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleReceipt));
+        when(receiptOcrDataRepository.findByReceiptIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleOcrData));
+        when(categoryRepository.findByIdAndUserId(30L, 1L)).thenReturn(Optional.of(groceryCat));
+        when(receiptOcrDataRepository.save(any(ReceiptOcrData.class))).thenAnswer(i -> i.getArgument(0));
+
+        com.heet.backend.dto.request.UpdateReceiptOcrRequest request =
+                com.heet.backend.dto.request.UpdateReceiptOcrRequest.builder()
+                        .merchant("New Corrected Supermarket")
+                        .amount(new BigDecimal("150.00"))
+                        .date(LocalDate.of(2026, 9, 15))
+                        .categoryId(30L)
+                        .build();
+
+        ReceiptOcrResponse response = receiptOcrService.updateOcrData(10L, request);
+
+        assertNotNull(response);
+        assertEquals(OcrStatus.COMPLETED, response.getStatus());
+        assertEquals("New Corrected Supermarket", response.getDetectedMerchant());
+        assertEquals(new BigDecimal("150.00"), response.getDetectedAmount());
+        assertEquals(LocalDate.of(2026, 9, 15), response.getDetectedDate());
+        assertEquals(30L, response.getSuggestedCategoryId());
+        assertEquals("Groceries", response.getSuggestedCategoryName());
+        assertNull(response.getFailureReason());
+        verify(receiptOcrDataRepository, times(1)).save(any(ReceiptOcrData.class));
+    }
 }

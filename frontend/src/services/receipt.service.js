@@ -110,6 +110,17 @@ export const receiptService = {
     const response = await apiClient.get(`/receipts/${receiptId}/ocr`);
     return response.data;
   },
+
+  /**
+   * Update OCR data for a receipt with user-corrected values
+   * @param {number} receiptId
+   * @param {{ merchant: string, amount: number, date?: string, categoryId?: number, categoryName?: string }} data
+   * @returns {Promise<any>}
+   */
+  async updateOcrData(receiptId, data) {
+    const response = await apiClient.put(`/receipts/${receiptId}/ocr`, data);
+    return response.data;
+  },
 };
 
 export default receiptService;

@@ -26,4 +26,20 @@ public class ReceiptOcrController {
         ReceiptOcrResponse response = receiptOcrService.getOcrData(receiptId);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping
+    public ResponseEntity<ReceiptOcrResponse> updateOcrData(
+            @PathVariable Long receiptId,
+            @jakarta.validation.Valid @RequestBody com.heet.backend.dto.request.UpdateReceiptOcrRequest request) {
+        ReceiptOcrResponse response = receiptOcrService.updateOcrData(receiptId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping
+    public ResponseEntity<ReceiptOcrResponse> patchOcrData(
+            @PathVariable Long receiptId,
+            @jakarta.validation.Valid @RequestBody com.heet.backend.dto.request.UpdateReceiptOcrRequest request) {
+        ReceiptOcrResponse response = receiptOcrService.updateOcrData(receiptId, request);
+        return ResponseEntity.ok(response);
+    }
 }

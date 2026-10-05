@@ -12,7 +12,7 @@ export function Topbar({ onMenuClick }) {
     item.path === '/'
       ? location.pathname === '/'
       : location.pathname.startsWith(item.path)
-  ) || { name: 'Finance Ledger' };
+  ) || { name: 'Nivara' };
 
   return (
     <header className="h-16 border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">

@@ -52,6 +52,7 @@ export const transactionService = {
     merchant,
     notes,
     categoryId,
+    transactionDate,
   }) {
     const payload = {
       amount,
@@ -61,9 +62,41 @@ export const transactionService = {
       merchant,
       notes: notes || null,
       categoryId: categoryId ? Number(categoryId) : null,
+      ...(transactionDate && { transactionDate }),
     };
 
     const response = await apiClient.post('/transactions', payload);
+    return response.data;
+  },
+
+  /**
+   * Update an existing transaction by ID
+   * @param {number} id
+   * @param {Object} data
+   * @returns {Promise<any>}
+   */
+  async updateTransaction(id, {
+    amount,
+    transactionType,
+    paymentMethod,
+    entrySource = 'RECEPT',
+    merchant,
+    notes,
+    categoryId,
+    transactionDate,
+  }) {
+    const payload = {
+      amount,
+      transactionType,
+      paymentMethod,
+      entrySource,
+      merchant,
+      notes: notes || null,
+      categoryId: categoryId ? Number(categoryId) : null,
+      ...(transactionDate && { transactionDate }),
+    };
+
+    const response = await apiClient.put(`/transactions/${id}`, payload);
     return response.data;
   },
 

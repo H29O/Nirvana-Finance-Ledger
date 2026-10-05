@@ -17,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.heet.backend.repository.ReceiptOcrDataRepository;
 import com.heet.backend.repository.ReceiptRepository;
 import java.time.LocalDateTime;
 
@@ -26,20 +27,24 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryRepository categoryRepository;
     private final ReceiptRepository receiptRepository;
+    private final ReceiptOcrDataRepository receiptOcrDataRepository;
 
     public TransactionService(
             TransactionRepository transactionRepository,
             CategoryRepository categoryRepository,
-            ReceiptRepository receiptRepository) {
+            ReceiptRepository receiptRepository,
+            ReceiptOcrDataRepository receiptOcrDataRepository) {
         this.transactionRepository = transactionRepository;
         this.categoryRepository = categoryRepository;
         this.receiptRepository = receiptRepository;
+        this.receiptOcrDataRepository = receiptOcrDataRepository;
     }
 
     @Transactional
     public TransactionResponse createTransaction(CreateTransactionRequest request) {
         User user = SecurityUtils.getCurrentUser();
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime txDate = request.getTransactionDate() != null ? request.getTransactionDate() : now;
 
         Transaction transaction = new Transaction();
         transaction.setUser(user);
@@ -49,7 +54,7 @@ public class TransactionService {
         transaction.setEntrySource(request.getEntrySource());
         transaction.setMerchant(request.getMerchant());
         transaction.setNotes(request.getNotes());
-        transaction.setTransactionDate(now);
+        transaction.setTransactionDate(txDate);
         transaction.setCreatedAt(now);
         transaction.setUpdatedAt(now);
 
@@ -71,11 +76,33 @@ public class TransactionService {
         transaction.setEntrySource(request.getEntrySource());
         transaction.setMerchant(request.getMerchant());
         transaction.setNotes(request.getNotes());
+        if (request.getTransactionDate() != null) {
+            transaction.setTransactionDate(request.getTransactionDate());
+        }
         transaction.setUpdatedAt(LocalDateTime.now());
 
         assignCategoryIfProvided(transaction, request.getCategoryId(), user.getId());
 
         Transaction savedTransaction = transactionRepository.save(transaction);
+
+        // Synchronize linked receipt OCR metadata if present
+        receiptRepository.findByTransactionIdAndUserId(id, user.getId()).ifPresent(receipt -> {
+            receiptOcrDataRepository.findByReceiptIdAndUserId(receipt.getId(), user.getId()).ifPresent(ocrData -> {
+                ocrData.setDetectedMerchant(savedTransaction.getMerchant());
+                ocrData.setDetectedAmount(savedTransaction.getAmount());
+                if (savedTransaction.getTransactionDate() != null) {
+                    ocrData.setDetectedDate(savedTransaction.getTransactionDate().toLocalDate());
+                }
+                if (savedTransaction.getCategory() != null) {
+                    ocrData.setSuggestedCategoryId(savedTransaction.getCategory().getId());
+                    ocrData.setSuggestedCategoryName(savedTransaction.getCategory().getName());
+                }
+                ocrData.setStatus(com.heet.backend.enums.OcrStatus.COMPLETED);
+                ocrData.setFailureReason(null);
+                receiptOcrDataRepository.save(ocrData);
+            });
+        });
+
         return mapToResponse(savedTransaction);
     }
 

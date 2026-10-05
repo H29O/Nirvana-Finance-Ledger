@@ -488,7 +488,7 @@ export function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  Log Out of Ledger?
+                  Log Out of Nivara?
                 </h3>
                 <p className="text-xs text-slate-500">
                   You will need to sign back in to access your records

@@ -42,6 +42,9 @@ class UserServiceTest {
     private EmailVerificationRepository emailVerificationRepository;
 
     @Mock
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Mock
     private ReceiptStorageService receiptStorageService;
 
     @InjectMocks
@@ -98,7 +101,9 @@ class UserServiceTest {
         verify(loanRecordRepository, times(1)).deleteByUserId(42L);
         // 6. Email verifications
         verify(emailVerificationRepository, times(1)).deleteByUserId(42L);
-        // 7. User entity
+        // 7. Password reset tokens
+        verify(passwordResetTokenRepository, times(1)).deleteByUserId(42L);
+        // 8. User entity
         verify(userRepository, times(1)).delete(user);
     }
 
@@ -106,7 +111,7 @@ class UserServiceTest {
     void deleteAccount_NullPrincipal_ThrowsInvalidCredentials() {
         assertThrows(InvalidCredentialsException.class, () -> userService.deleteAccount(null));
         verifyNoInteractions(receiptOcrDataRepository, receiptRepository, transactionRepository,
-                categoryRepository, loanRecordRepository, emailVerificationRepository, userRepository);
+                categoryRepository, loanRecordRepository, emailVerificationRepository, passwordResetTokenRepository, userRepository);
     }
 
     @Test

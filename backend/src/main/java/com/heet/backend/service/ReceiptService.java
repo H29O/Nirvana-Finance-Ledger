@@ -134,6 +134,42 @@ public class ReceiptService {
 
         receipt.setTransaction(transaction);
         Receipt savedReceipt = receiptRepository.save(receipt);
+
+        // Synchronize linked transaction metadata with OCR record so Receipt Vault shows canonical data
+        receiptOcrDataRepository.findByReceiptIdAndUserId(id, userId).ifPresentOrElse(ocrData -> {
+            if (transaction.getMerchant() != null && !transaction.getMerchant().isBlank()) {
+                ocrData.setDetectedMerchant(transaction.getMerchant());
+            }
+            if (transaction.getAmount() != null) {
+                ocrData.setDetectedAmount(transaction.getAmount());
+            }
+            if (transaction.getTransactionDate() != null) {
+                ocrData.setDetectedDate(transaction.getTransactionDate().toLocalDate());
+            }
+            if (transaction.getCategory() != null) {
+                ocrData.setSuggestedCategoryId(transaction.getCategory().getId());
+                ocrData.setSuggestedCategoryName(transaction.getCategory().getName());
+            }
+            ocrData.setStatus(com.heet.backend.enums.OcrStatus.COMPLETED);
+            ocrData.setFailureReason(null);
+            receiptOcrDataRepository.save(ocrData);
+        }, () -> {
+            com.heet.backend.entity.ReceiptOcrData newOcrData = new com.heet.backend.entity.ReceiptOcrData();
+            newOcrData.setReceipt(savedReceipt);
+            newOcrData.setUser(savedReceipt.getUser());
+            newOcrData.setStatus(com.heet.backend.enums.OcrStatus.COMPLETED);
+            newOcrData.setDetectedMerchant(transaction.getMerchant());
+            newOcrData.setDetectedAmount(transaction.getAmount());
+            if (transaction.getTransactionDate() != null) {
+                newOcrData.setDetectedDate(transaction.getTransactionDate().toLocalDate());
+            }
+            if (transaction.getCategory() != null) {
+                newOcrData.setSuggestedCategoryId(transaction.getCategory().getId());
+                newOcrData.setSuggestedCategoryName(transaction.getCategory().getName());
+            }
+            receiptOcrDataRepository.save(newOcrData);
+        });
+
         return mapToResponse(savedReceipt);
     }
 

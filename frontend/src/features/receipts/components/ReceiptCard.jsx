@@ -22,6 +22,7 @@ export function ReceiptCard({
   onLinkClick,
   onUnlinkClick,
   onDeleteClick,
+  refreshKey,
 }) {
   const [ocrData, setOcrData] = useState(null);
   const [isLoadingOcr, setIsLoadingOcr] = useState(false);
@@ -30,7 +31,7 @@ export function ReceiptCard({
   const isPdf = receipt.contentType === 'application/pdf';
   const fileSizeKb = receipt.fileSize ? (receipt.fileSize / 1024).toFixed(0) + ' KB' : '';
 
-  // Try to load existing OCR data on mount
+  // Try to load existing OCR data on mount or when receipt or refreshKey changes
   useEffect(() => {
     let isMounted = true;
     setIsLoadingOcr(true);
@@ -49,7 +50,7 @@ export function ReceiptCard({
     return () => {
       isMounted = false;
     };
-  }, [receipt.id]);
+  }, [receipt.id, receipt.transactionId, refreshKey]);
 
   const handleRunOcr = async () => {
     setIsProcessingOcr(true);
@@ -151,21 +152,39 @@ export function ReceiptCard({
 
           {/* Extracted Details */}
           {hasCompletedOcr && (
-            <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[11px] text-slate-400 block">Detected:</span>
-                <span className="font-semibold text-slate-800 truncate max-w-[140px] block">
-                  {ocrData.detectedMerchant || 'Merchant not found'}
-                </span>
+            <div className="pt-2 border-t border-slate-200/60 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <span className="text-[11px] text-slate-400 block">Merchant:</span>
+                  <span
+                    className="font-semibold text-slate-800 truncate max-w-[140px] block"
+                    title={ocrData.detectedMerchant || 'Merchant not found'}
+                  >
+                    {ocrData.detectedMerchant || 'Merchant not found'}
+                  </span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[11px] text-slate-400 block">Total:</span>
+                  <span className="font-bold text-slate-900 font-tabular text-sm">
+                    {ocrData.detectedAmount != null
+                      ? formatCurrency(ocrData.detectedAmount)
+                      : '—'}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[11px] text-slate-400 block">Total:</span>
-                <span className="font-bold text-slate-900 font-tabular text-sm">
-                  {ocrData.detectedAmount != null
-                    ? formatCurrency(ocrData.detectedAmount)
-                    : '—'}
-                </span>
-              </div>
+
+              {(ocrData.detectedDate || ocrData.suggestedCategoryName) && (
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                  <span>
+                    {ocrData.detectedDate ? formatDate(ocrData.detectedDate) : 'No date'}
+                  </span>
+                  {ocrData.suggestedCategoryName && (
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium text-[10px] truncate max-w-[120px]">
+                      {ocrData.suggestedCategoryName}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -238,7 +257,7 @@ export function ReceiptCard({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"
             >
               <PlusCircle className="w-3.5 h-3.5" />
-              <span>{isLinked ? 'View OCR' : 'Create Transaction'}</span>
+              <span>{isLinked ? 'Review / Edit' : 'Create Transaction'}</span>
             </button>
           ) : (
             <button

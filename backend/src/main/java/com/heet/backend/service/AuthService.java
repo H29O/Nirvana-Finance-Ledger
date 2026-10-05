@@ -25,6 +25,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final CategoryService categoryService;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
 
     public AuthService(
             UserRepository userRepository,
@@ -32,11 +33,52 @@ public class AuthService {
             JwtTokenProvider jwtTokenProvider,
             CategoryService categoryService,
             EmailVerificationService emailVerificationService) {
+        this(userRepository, passwordEncoder, jwtTokenProvider, categoryService, emailVerificationService, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuthService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            JwtTokenProvider jwtTokenProvider,
+            CategoryService categoryService,
+            EmailVerificationService emailVerificationService,
+            PasswordResetService passwordResetService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.categoryService = categoryService;
         this.emailVerificationService = emailVerificationService;
+        this.passwordResetService = passwordResetService;
+    }
+
+    @Transactional
+    public void forgotPassword(com.heet.backend.dto.request.ForgotPasswordRequest request) {
+        if (passwordResetService != null) {
+            passwordResetService.forgotPassword(request);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public boolean validateResetToken(String token) {
+        if (passwordResetService != null) {
+            return passwordResetService.validateResetToken(token);
+        }
+        return false;
+    }
+
+    @Transactional
+    public void resetPassword(com.heet.backend.dto.request.ResetPasswordRequest request) {
+        if (passwordResetService != null) {
+            passwordResetService.resetPassword(request);
+        }
+    }
+
+    @Transactional
+    public void changePassword(UserPrincipal principal, com.heet.backend.dto.request.ChangePasswordRequest request) {
+        if (passwordResetService != null) {
+            passwordResetService.changePassword(principal, request);
+        }
     }
 
     @Transactional

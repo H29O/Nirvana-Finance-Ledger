@@ -56,6 +56,9 @@ class AccountDeletionIntegrationTest {
     private EmailVerificationRepository emailVerificationRepository;
 
     @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Autowired
     private JwtTokenProvider jwtTokenProvider;
 
     @Autowired
@@ -146,6 +149,23 @@ class AccountDeletionIntegrationTest {
                 .build();
         emailVerificationRepository.save(verification);
 
+        // 8. Create PasswordResetToken records for user
+        PasswordResetToken resetToken1 = PasswordResetToken.builder()
+                .user(user)
+                .tokenHash("hash1_" + System.currentTimeMillis())
+                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .status(PasswordResetToken.ResetTokenStatus.PENDING)
+                .build();
+        passwordResetTokenRepository.save(resetToken1);
+
+        PasswordResetToken resetToken2 = PasswordResetToken.builder()
+                .user(user)
+                .tokenHash("hash2_" + System.currentTimeMillis())
+                .expiresAt(LocalDateTime.now().minusMinutes(5))
+                .status(PasswordResetToken.ResetTokenStatus.EXPIRED)
+                .build();
+        passwordResetTokenRepository.save(resetToken2);
+
         // Generate JWT token for this user
         String token = jwtTokenProvider.generateToken(user.getEmail());
 
@@ -164,6 +184,8 @@ class AccountDeletionIntegrationTest {
         assertEquals(0, categoryRepository.findByUserId(userId).size());
         assertEquals(0, loanRecordRepository.findByUserId(userId, null).getTotalElements());
         assertEquals(0, emailVerificationRepository.findByUserIdAndStatus(userId, EmailVerification.VerificationStatus.VERIFIED).size());
+        assertEquals(0, passwordResetTokenRepository.findByUserIdAndStatus(userId, PasswordResetToken.ResetTokenStatus.PENDING).size());
+        assertEquals(0, passwordResetTokenRepository.findByUserIdAndStatus(userId, PasswordResetToken.ResetTokenStatus.EXPIRED).size());
     }
 
     @Test

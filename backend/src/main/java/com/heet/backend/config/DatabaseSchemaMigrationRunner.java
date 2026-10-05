@@ -83,11 +83,50 @@ public class DatabaseSchemaMigrationRunner implements ApplicationRunner {
                                 WHEN others THEN NULL;
                             END;
                         END IF;
+
+                        -- 4. Ensure password_reset_tokens has ON DELETE CASCADE on user_id
+                        IF EXISTS (
+                            SELECT 1 FROM information_schema.tables WHERE table_name = 'password_reset_tokens'
+                        ) THEN
+                            IF EXISTS (
+                                SELECT 1 FROM pg_constraint c
+                                JOIN pg_class t ON c.conrelid = t.oid
+                                WHERE t.relname = 'password_reset_tokens'
+                                  AND c.contype = 'f'
+                                  AND c.confdeltype != 'c'
+                            ) THEN
+                                EXECUTE (
+                                    SELECT 'ALTER TABLE password_reset_tokens DROP CONSTRAINT ' || quote_ident(c.conname)
+                                    FROM pg_constraint c
+                                    JOIN pg_class t ON c.conrelid = t.oid
+                                    WHERE t.relname = 'password_reset_tokens'
+                                      AND c.contype = 'f'
+                                      AND c.confdeltype != 'c'
+                                    LIMIT 1
+                                );
+                            END IF;
+
+                            IF NOT EXISTS (
+                                SELECT 1 FROM pg_constraint c
+                                JOIN pg_class t ON c.conrelid = t.oid
+                                WHERE t.relname = 'password_reset_tokens'
+                                  AND c.contype = 'f'
+                                  AND c.confdeltype = 'c'
+                            ) THEN
+                                BEGIN
+                                    ALTER TABLE password_reset_tokens
+                                    ADD CONSTRAINT fk_password_reset_tokens_user
+                                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+                                EXCEPTION
+                                    WHEN others THEN NULL;
+                                END;
+                            END IF;
+                        END IF;
                     END $$;
                     """;
 
                 jdbcTemplate.execute(migrationSql);
-                log.info("Category table unique constraints verified successfully (UNIQUE(user_id, name)).");
+                log.info("Category table unique constraints and password reset token constraints verified successfully.");
             }
         } catch (Exception e) {
             log.warn("Database schema migration runner notice: {}", e.getMessage());

@@ -52,4 +52,41 @@ public class AuthController {
                 "emailDeliverySuccess", true
         ));
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@Valid @RequestBody com.heet.backend.dto.request.ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(Map.of(
+                "message", "If an account exists for this email, we've sent a password reset link.",
+                "emailDeliverySuccess", true
+        ));
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/validate-reset-token")
+    public ResponseEntity<Map<String, Object>> validateResetToken(@org.springframework.web.bind.annotation.RequestParam("token") String token) {
+        authService.validateResetToken(token);
+        return ResponseEntity.ok(Map.of(
+                "valid", true
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody com.heet.backend.dto.request.ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(Map.of(
+                "message", "Password changed successfully.",
+                "success", true
+        ));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.heet.backend.security.UserPrincipal principal,
+            @Valid @RequestBody com.heet.backend.dto.request.ChangePasswordRequest request) {
+        authService.changePassword(principal, request);
+        return ResponseEntity.ok(Map.of(
+                "message", "Password changed successfully.",
+                "success", true
+        ));
+    }
 }

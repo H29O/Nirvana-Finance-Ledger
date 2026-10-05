@@ -4,7 +4,7 @@ export const STORAGE_KEYS = {
 };
 
 export const APP_CONFIG = {
-  NAME: 'Finance Ledger',
+  NAME: 'Nivara',
   DESCRIPTION: 'Intelligent Personal Finance & Accounting System',
   VERSION: '1.0.0',
 };

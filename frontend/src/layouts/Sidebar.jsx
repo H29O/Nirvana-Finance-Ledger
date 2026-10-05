@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import { cn } from '../lib/utils';
+import NivaraBrand from '../components/ui/NivaraLogo';
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -46,25 +47,7 @@ export function Sidebar({ className }) {
     >
       {/* Brand Header */}
       <div className="p-5 pb-3">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm">
-            <svg className="w-6 h-6" viewBox="0 0 100 100" fill="none">
-              <rect width="100" height="100" rx="24" fill="#4f46e5" />
-              <path d="M28 32C28 29.7909 29.7909 28 32 28H68C70.2091 28 72 29.7909 72 32V68C72 70.2091 70.2091 72 68 72H32C29.7909 72 28 70.2091 28 68V32Z" stroke="#ffffff" strokeWidth="5" strokeLinejoin="round" />
-              <path d="M38 42H62" stroke="#e0e7ff" strokeWidth="5" strokeLinecap="round" />
-              <path d="M38 52H52" stroke="#10b981" strokeWidth="5" strokeLinecap="round" />
-              <path d="M38 62H58" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div>
-            <span className="font-bold text-sm tracking-tight text-slate-900">
-              Finance Ledger
-            </span>
-            <p className="text-[11px] text-slate-400 font-medium">
-              Personal Expenses
-            </p>
-          </div>
-        </div>
+        <NivaraBrand size="md" subtitle="Personal Finance" to="/" />
       </div>
 
       {/* Navigation Items */}
