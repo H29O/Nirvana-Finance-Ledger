@@ -39,7 +39,7 @@ public class BackendApplication {
 						if ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'"))) {
 							value = value.substring(1, value.length() - 1);
 						}
-						if (System.getProperty(key) == null && System.getenv(key) == null) {
+						if (System.getenv(key) == null) {
 							System.setProperty(key, value);
 						}
 						if ((key.equals("Google") || key.equalsIgnoreCase("GMAIL_APP_PASSWORD")) 
