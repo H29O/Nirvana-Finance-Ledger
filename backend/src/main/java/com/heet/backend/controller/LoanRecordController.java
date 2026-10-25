@@ -1,5 +1,6 @@
 package com.heet.backend.controller;
 
+import com.heet.backend.dto.request.AddLoanPrincipalRequest;
 import com.heet.backend.dto.request.CreateLoanRecordRequest;
 import com.heet.backend.dto.request.LoanPaymentRequest;
 import com.heet.backend.dto.request.UpdateLoanRecordRequest;
@@ -86,6 +87,14 @@ public class LoanRecordController {
             @PathVariable Long id,
             @Valid @RequestBody LoanPaymentRequest request) {
         LoanRecordResponse response = loanRecordService.recordPayment(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/add-money")
+    public ResponseEntity<LoanRecordResponse> addMoreMoney(
+            @PathVariable Long id,
+            @Valid @RequestBody AddLoanPrincipalRequest request) {
+        LoanRecordResponse response = loanRecordService.addMoreMoney(id, request);
         return ResponseEntity.ok(response);
     }
 }

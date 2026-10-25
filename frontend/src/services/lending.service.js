@@ -57,17 +57,39 @@ export const lendingService = {
    * @param {string} data.personName
    * @param {string} [data.description]
    * @param {string} [data.dueDate] YYYY-MM-DD
+   * @param {number} [data.originalAmount]
    * @returns {Promise<any>}
    */
-  async updateLoanRecord(id, { type, personName, description, dueDate }) {
+  async updateLoanRecord(id, { type, personName, description, dueDate, originalAmount }) {
     const payload = {
       type,
       personName: personName.trim(),
       description: description ? description.trim() : null,
       dueDate: dueDate || null,
+      originalAmount: originalAmount !== undefined && originalAmount !== null ? Number(originalAmount) : undefined,
     };
 
     const response = await apiClient.put(`/loans/${id}`, payload);
+    return response.data;
+  },
+
+  /**
+   * Add additional principal money to an existing loan record
+   * @param {number} id
+   * @param {Object} data
+   * @param {number} data.amount
+   * @param {string} [data.date] YYYY-MM-DD
+   * @param {string} [data.notes]
+   * @returns {Promise<any>}
+   */
+  async addMoreMoney(id, { amount, date, notes }) {
+    const payload = {
+      amount: Number(amount),
+      date: date || null,
+      notes: notes ? notes.trim() : null,
+    };
+
+    const response = await apiClient.post(`/loans/${id}/add-money`, payload);
     return response.data;
   },
 
@@ -76,11 +98,15 @@ export const lendingService = {
    * @param {number} id
    * @param {Object} data
    * @param {number} data.amount
+   * @param {string} [data.paymentDate] YYYY-MM-DD
+   * @param {string} [data.notes]
    * @returns {Promise<any>}
    */
-  async recordPayment(id, { amount }) {
+  async recordPayment(id, { amount, paymentDate, notes }) {
     const payload = {
       amount: Number(amount),
+      paymentDate: paymentDate || null,
+      notes: notes ? notes.trim() : null,
     };
 
     const response = await apiClient.patch(`/loans/${id}/payment`, payload);

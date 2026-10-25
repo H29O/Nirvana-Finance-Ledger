@@ -313,4 +313,55 @@ class TransactionServiceTest {
         verify(receiptRepository, never()).save(any());
         verify(transactionRepository).delete(sample);
     }
+
+    @Test
+    void updateTransaction_UpdateTransactionDate_Success() {
+        Transaction existing = new Transaction();
+        existing.setId(1L);
+        existing.setUser(testUser);
+        existing.setTransactionDate(java.time.LocalDateTime.of(2026, 1, 1, 10, 0));
+
+        java.time.LocalDateTime newDate = java.time.LocalDateTime.of(2026, 10, 25, 14, 30);
+        CreateTransactionRequest updateReq = new CreateTransactionRequest(
+                BigDecimal.valueOf(120.00),
+                TransactionType.EXPENSE,
+                PaymentMethod.DIGITAL,
+                EntrySource.MANUAL,
+                "New Store",
+                "Updated note",
+                null,
+                newDate
+        );
+
+        when(transactionRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(existing));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArgument(0));
+
+        TransactionResponse response = transactionService.updateTransaction(1L, updateReq);
+
+        assertNotNull(response);
+        assertEquals(newDate, response.getTransactionDate());
+        assertEquals("New Store", response.getMerchant());
+        assertEquals(0, BigDecimal.valueOf(120.00).compareTo(response.getAmount()));
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
+    }
+
+    @Test
+    void updateTransaction_UnauthorizedUser_ThrowsException() {
+        when(transactionRepository.findByIdAndUserId(999L, 1L)).thenReturn(Optional.empty());
+
+        CreateTransactionRequest updateReq = new CreateTransactionRequest(
+                BigDecimal.valueOf(100.00),
+                TransactionType.EXPENSE,
+                PaymentMethod.CASH,
+                EntrySource.MANUAL,
+                "Merchant",
+                null,
+                null,
+                java.time.LocalDateTime.now()
+        );
+
+        assertThrows(com.heet.backend.exception.TransactionNotFoundException.class,
+                () -> transactionService.updateTransaction(999L, updateReq));
+        verify(transactionRepository, never()).save(any(Transaction.class));
+    }
 }

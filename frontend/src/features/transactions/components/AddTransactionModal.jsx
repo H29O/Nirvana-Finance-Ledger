@@ -3,11 +3,21 @@ import categoryService from '../../../services/category.service';
 import transactionService from '../../../services/transaction.service';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
-import { X, ArrowUpRight, ArrowDownRight, AlertCircle } from 'lucide-react';
+import { X, ArrowUpRight, ArrowDownRight, AlertCircle, Calendar } from 'lucide-react';
 
-export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export function AddTransactionModal({ isOpen, onClose, onSuccess, transactionToEdit = null }) {
   const [categories, setCategories] = useState([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+
+  const isEditing = Boolean(transactionToEdit);
 
   const [formData, setFormData] = useState({
     amount: '',
@@ -17,11 +27,45 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
     merchant: '',
     notes: '',
     categoryId: '',
+    transactionDate: getTodayLocalDate(),
   });
 
   const [formErrors, setFormErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Sync form data when modal opens or transactionToEdit changes
+  useEffect(() => {
+    if (isOpen) {
+      if (transactionToEdit) {
+        setFormData({
+          amount: transactionToEdit.amount !== undefined ? String(transactionToEdit.amount) : '',
+          transactionType: transactionToEdit.transactionType || 'EXPENSE',
+          paymentMethod: transactionToEdit.paymentMethod || 'DIGITAL',
+          entrySource: transactionToEdit.entrySource || 'MANUAL',
+          merchant: transactionToEdit.merchant || '',
+          notes: transactionToEdit.notes || '',
+          categoryId: transactionToEdit.categoryId ? String(transactionToEdit.categoryId) : '',
+          transactionDate: transactionToEdit.transactionDate
+            ? transactionToEdit.transactionDate.substring(0, 10)
+            : getTodayLocalDate(),
+        });
+      } else {
+        setFormData({
+          amount: '',
+          transactionType: 'EXPENSE',
+          paymentMethod: 'DIGITAL',
+          entrySource: 'MANUAL',
+          merchant: '',
+          notes: '',
+          categoryId: '',
+          transactionDate: getTodayLocalDate(),
+        });
+      }
+      setFormErrors({});
+      setGeneralError('');
+    }
+  }, [isOpen, transactionToEdit]);
 
   // Load categories when modal opens
   useEffect(() => {
@@ -58,6 +102,10 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
       errors.merchant = 'Merchant or description is required';
     }
 
+    if (!formData.transactionDate || formData.transactionDate.trim() === '') {
+      errors.transactionDate = 'Transaction date is required';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -70,33 +118,30 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
     setGeneralError('');
 
     try {
-      await transactionService.createTransaction({
+      const payload = {
         amount: parseFloat(formData.amount),
         transactionType: formData.transactionType,
         paymentMethod: formData.paymentMethod,
-        entrySource: 'MANUAL',
+        entrySource: formData.entrySource || 'MANUAL',
         merchant: formData.merchant.trim(),
         notes: formData.notes.trim() || null,
         categoryId: formData.categoryId ? Number(formData.categoryId) : null,
-      });
+        transactionDate: formData.transactionDate,
+      };
 
-      // Reset form and notify parent
-      setFormData({
-        amount: '',
-        transactionType: 'EXPENSE',
-        paymentMethod: 'DIGITAL',
-        entrySource: 'MANUAL',
-        merchant: '',
-        notes: '',
-        categoryId: '',
-      });
+      if (isEditing) {
+        await transactionService.updateTransaction(transactionToEdit.id, payload);
+      } else {
+        await transactionService.createTransaction(payload);
+      }
+
       onSuccess();
       onClose();
     } catch (err) {
       if (err.validationErrors) {
         setFormErrors(err.validationErrors);
       }
-      setGeneralError(err.normalizedMessage || 'Failed to record transaction. Please try again.');
+      setGeneralError(err.normalizedMessage || `Failed to ${isEditing ? 'update' : 'record'} transaction. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -118,8 +163,12 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Add Transaction</h3>
-            <p className="text-xs text-slate-500">Record a new cash or digital entry</p>
+            <h3 className="text-base font-bold text-slate-900">
+              {isEditing ? 'Edit Transaction' : 'Add Transaction'}
+            </h3>
+            <p className="text-xs text-slate-500">
+              {isEditing ? 'Update transaction details and date' : 'Record a new cash or digital entry'}
+            </p>
           </div>
 
           <button
@@ -171,19 +220,32 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
             </button>
           </div>
 
-          {/* Amount Field */}
-          <Input
-            label="Amount (₹)"
-            name="amount"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={formData.amount}
-            onChange={handleChange}
-            error={formErrors.amount}
-            leftIcon={<span className="text-sm font-bold text-slate-500">₹</span>}
-            required
-          />
+          {/* Amount and Date Fields in a clean grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Amount (₹)"
+              name="amount"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={handleChange}
+              error={formErrors.amount}
+              leftIcon={<span className="text-sm font-bold text-slate-500">₹</span>}
+              required
+            />
+
+            <Input
+              label="Date"
+              name="transactionDate"
+              type="date"
+              value={formData.transactionDate}
+              onChange={handleChange}
+              error={formErrors.transactionDate}
+              leftIcon={<Calendar className="w-4 h-4 text-slate-400" />}
+              required
+            />
+          </div>
 
           {/* Merchant / Description */}
           <Input
@@ -275,7 +337,7 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }) {
               size="sm"
               isLoading={isSubmitting}
             >
-              {isExpense ? 'Add Expense' : 'Add Income'}
+              {isEditing ? 'Save Changes' : (isExpense ? 'Add Expense' : 'Add Income')}
             </Button>
           </div>
         </form>

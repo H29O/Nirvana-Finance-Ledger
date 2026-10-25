@@ -7,6 +7,7 @@ import LoanCard from './components/LoanCard';
 import LoanFormModal from './components/LoanFormModal';
 import LoanPaymentModal from './components/LoanPaymentModal';
 import LoanDetailsModal from './components/LoanDetailsModal';
+import LoanAddMoneyModal from './components/LoanAddMoneyModal';
 import LoanDeleteModal from './components/LoanDeleteModal';
 import LoanSkeleton from './components/LoanSkeleton';
 import { formatCurrency } from '../../lib/formatters';
@@ -41,6 +42,9 @@ export function LendingPage() {
 
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [payingRecord, setPayingRecord] = useState(null);
+
+  const [isAddMoneyOpen, setIsAddMoneyOpen] = useState(false);
+  const [addMoneyRecord, setAddMoneyRecord] = useState(null);
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [detailsRecord, setDetailsRecord] = useState(null);
@@ -163,6 +167,11 @@ export function LendingPage() {
   const handleOpenPayment = (record) => {
     setPayingRecord(record);
     setIsPaymentOpen(true);
+  };
+
+  const handleOpenAddMoney = (record) => {
+    setAddMoneyRecord(record);
+    setIsAddMoneyOpen(true);
   };
 
   const handleOpenDetails = (record) => {
@@ -468,6 +477,7 @@ export function LendingPage() {
                     key={record.id}
                     record={record}
                     onRecordPayment={handleOpenPayment}
+                    onAddMoney={handleOpenAddMoney}
                     onViewDetails={handleOpenDetails}
                     onEdit={handleOpenEdit}
                     onDelete={handleOpenDelete}
@@ -498,6 +508,7 @@ export function LendingPage() {
                     key={record.id}
                     record={record}
                     onRecordPayment={handleOpenPayment}
+                    onAddMoney={handleOpenAddMoney}
                     onViewDetails={handleOpenDetails}
                     onEdit={handleOpenEdit}
                     onDelete={handleOpenDelete}
@@ -515,6 +526,7 @@ export function LendingPage() {
               key={record.id}
               record={record}
               onRecordPayment={handleOpenPayment}
+              onAddMoney={handleOpenAddMoney}
               onViewDetails={handleOpenDetails}
               onEdit={handleOpenEdit}
               onDelete={handleOpenDelete}
@@ -538,11 +550,20 @@ export function LendingPage() {
         onSuccess={handleSuccess}
       />
 
+      <LoanAddMoneyModal
+        isOpen={isAddMoneyOpen}
+        onClose={() => setIsAddMoneyOpen(false)}
+        record={addMoneyRecord}
+        onSuccess={handleSuccess}
+      />
+
       <LoanDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         record={detailsRecord}
         onRecordPayment={handleOpenPayment}
+        onAddMoney={handleOpenAddMoney}
+        onEdit={handleOpenEdit}
       />
 
       <LoanDeleteModal

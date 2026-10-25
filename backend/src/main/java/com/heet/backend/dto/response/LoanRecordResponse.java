@@ -11,6 +11,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -24,9 +25,13 @@ public class LoanRecordResponse {
     private String personName;
     private String description;
     private BigDecimal originalAmount;
+    private BigDecimal additionalAmount;
+    private BigDecimal totalPrincipal;
+    private BigDecimal totalRepaid;
     private BigDecimal remainingAmount;
     private LoanStatus status;
     private LocalDate dueDate;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<LoanEventResponse> events;
 }

@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/change-password").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/health").permitAll()
                         .anyRequest().authenticated()
                 );
 
@@ -70,8 +71,13 @@ public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
 
     configuration.setAllowedOrigins(List.of(
+            "http://localhost",
+            "http://localhost:80",
+            "http://localhost:8080",
             "http://localhost:5173",
-            "https://nirvanaapp.vercel.app"
+            "http://127.0.0.1",
+            "http://127.0.0.1:8080",
+            "http://127.0.0.1:5173"
     ));
 
     configuration.setAllowedMethods(List.of(

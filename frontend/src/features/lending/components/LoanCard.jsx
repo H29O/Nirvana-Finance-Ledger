@@ -12,11 +12,13 @@ import {
   Trash2,
   Info,
   Clock,
+  PlusCircle,
 } from 'lucide-react';
 
 export function LoanCard({
   record,
   onRecordPayment,
+  onAddMoney,
   onViewDetails,
   onEdit,
   onDelete,
@@ -25,10 +27,12 @@ export function LoanCard({
   const isSettled = record.status === 'SETTLED';
 
   const original = Number(record.originalAmount || 0);
+  const additional = Number(record.additionalAmount || 0);
+  const totalPrincipal = Number(record.totalPrincipal ?? (original + additional));
   const remaining = Number(record.remainingAmount || 0);
-  const paid = Math.max(0, original - remaining);
+  const paid = Number(record.totalRepaid ?? Math.max(0, totalPrincipal - remaining));
 
-  const percentPaid = original > 0 ? Math.min(100, Math.round((paid / original) * 100)) : 0;
+  const percentPaid = totalPrincipal > 0 ? Math.min(100, Math.round((paid / totalPrincipal) * 100)) : 0;
 
   // Check if overdue
   const isOverdue =
@@ -100,17 +104,29 @@ export function LoanCard({
       <div className="space-y-2 pt-2 border-t border-slate-100">
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
-            <span className="text-[10px] text-slate-400 block font-medium">Original</span>
-            <span className="font-semibold text-slate-700 font-tabular">
-              {formatCurrency(original)}
+            <span className="text-[10px] text-slate-400 block font-medium">
+              {additional > 0 ? 'Total Principal' : 'Original'}
             </span>
+            <span className="font-semibold text-slate-700 font-tabular block">
+              {formatCurrency(totalPrincipal)}
+            </span>
+            {additional > 0 && (
+              <span className="text-[9px] text-slate-400 block font-tabular truncate">
+                Orig: {formatCurrency(original)}
+              </span>
+            )}
           </div>
 
           <div>
             <span className="text-[10px] text-slate-400 block font-medium">Paid</span>
-            <span className="font-semibold text-emerald-600 font-tabular">
+            <span className="font-semibold text-emerald-600 font-tabular block">
               {formatCurrency(paid)}
             </span>
+            {additional > 0 && (
+              <span className="text-[9px] text-slate-400 block font-tabular truncate">
+                Add: +{formatCurrency(additional)}
+              </span>
+            )}
           </div>
 
           <div className="text-right">
@@ -175,6 +191,16 @@ export function LoanCard({
 
           <button
             type="button"
+            onClick={() => onAddMoney && onAddMoney(record)}
+            title="Add more money"
+            aria-label="Add more money"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+          >
+            <PlusCircle className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
             onClick={() => onEdit(record)}
             title="Edit record"
             aria-label="Edit record"
@@ -194,7 +220,7 @@ export function LoanCard({
           </button>
         </div>
 
-        {/* Primary Action: Record Payment */}
+        {/* Primary Action */}
         {!isSettled ? (
           <Button
             variant="outline"
@@ -206,9 +232,16 @@ export function LoanCard({
             <span>Record Payment</span>
           </Button>
         ) : (
-          <span className="text-xs text-slate-400 font-medium px-2 py-1">
-            Completed
-          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onAddMoney && onAddMoney(record)}
+            className="text-xs h-8 px-2.5 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center gap-1 font-medium"
+            title="Add more money to reactivate this loan"
+          >
+            <PlusCircle className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Add Money</span>
+          </Button>
         )}
       </div>
     </Card>

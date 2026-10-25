@@ -11,7 +11,17 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Coins,
+  Calendar,
+  FileText,
 } from 'lucide-react';
+
+const getTodayLocalDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export function LoanPaymentModal({
   isOpen,
@@ -20,6 +30,8 @@ export function LoanPaymentModal({
   onSuccess,
 }) {
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(getTodayLocalDate());
+  const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [generalError, setGeneralError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -27,6 +39,8 @@ export function LoanPaymentModal({
   useEffect(() => {
     if (isOpen && record) {
       setPaymentAmount('');
+      setPaymentDate(getTodayLocalDate());
+      setNotes('');
       setError('');
       setGeneralError('');
     }
@@ -75,6 +89,8 @@ export function LoanPaymentModal({
     try {
       const updated = await lendingService.recordPayment(record.id, {
         amount: parseFloat(paymentAmount),
+        paymentDate: paymentDate || null,
+        notes: notes ? notes.trim() : null,
       });
 
       onSuccess(
@@ -207,6 +223,33 @@ export function LoanPaymentModal({
               leftIcon={<span className="text-sm font-bold text-slate-500">₹</span>}
               autoFocus
               required
+            />
+          </div>
+
+          {/* Payment Date */}
+          <Input
+            label="Payment Date"
+            name="paymentDate"
+            type="date"
+            value={paymentDate}
+            onChange={(e) => setPaymentDate(e.target.value)}
+            leftIcon={<Calendar className="w-4 h-4 text-slate-400" />}
+            required
+          />
+
+          {/* Optional Notes */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-slate-700 select-none flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              <span>Notes / Transaction Ref (Optional)</span>
+            </label>
+            <textarea
+              name="notes"
+              rows={2}
+              placeholder="e.g. Paid via Google Pay / Cash / Bank transfer"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="block w-full rounded-xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 py-2 px-3.5 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
             />
           </div>
 

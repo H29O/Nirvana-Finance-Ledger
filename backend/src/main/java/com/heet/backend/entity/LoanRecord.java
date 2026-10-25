@@ -41,6 +41,17 @@ public class LoanRecord {
     @Column(nullable = false)
     private BigDecimal remainingAmount;
 
+    @Column(nullable = false)
+    private BigDecimal additionalAmount = BigDecimal.ZERO;
+
+    @Version
+    @Column(nullable = false)
+    private Long version = 0L;
+
+    @OneToMany(mappedBy = "loanRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("eventDate ASC, id ASC")
+    private java.util.List<LoanEvent> events = new java.util.ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private LoanStatus status;
@@ -53,6 +64,12 @@ public class LoanRecord {
 
     @PrePersist
     protected void onCreate() {
+        if (additionalAmount == null) {
+            additionalAmount = BigDecimal.ZERO;
+        }
+        if (version == null) {
+            version = 0L;
+        }
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
@@ -60,5 +77,17 @@ public class LoanRecord {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    public BigDecimal getTotalPrincipal() {
+        BigDecimal orig = originalAmount != null ? originalAmount : BigDecimal.ZERO;
+        BigDecimal add = additionalAmount != null ? additionalAmount : BigDecimal.ZERO;
+        return orig.add(add);
+    }
+
+    public BigDecimal getTotalRepaid() {
+        BigDecimal rem = remainingAmount != null ? remainingAmount : BigDecimal.ZERO;
+        BigDecimal diff = getTotalPrincipal().subtract(rem);
+        return diff.compareTo(BigDecimal.ZERO) > 0 ? diff : BigDecimal.ZERO;
     }
 }

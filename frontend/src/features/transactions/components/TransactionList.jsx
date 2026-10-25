@@ -5,11 +5,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Trash2,
+  Edit2,
   CreditCard,
   Banknote,
 } from 'lucide-react';
 
-export function TransactionList({ transactions = [], onDeleteTransaction }) {
+export function TransactionList({ transactions = [], onDeleteTransaction, onEditTransaction }) {
   const [deletingId, setDeletingId] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
@@ -146,15 +147,26 @@ export function TransactionList({ transactions = [], onDeleteTransaction }) {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(tx.id)}
-                        title="Delete transaction"
-                        aria-label="Delete transaction"
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => onEditTransaction && onEditTransaction(tx)}
+                          title="Edit transaction"
+                          aria-label="Edit transaction"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(tx.id)}
+                          title="Delete transaction"
+                          aria-label="Delete transaction"
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -221,11 +233,19 @@ export function TransactionList({ transactions = [], onDeleteTransaction }) {
                 </div>
               </div>
 
-              {/* Mobile delete action */}
-              <div className="flex justify-end pt-1">
+              {/* Mobile actions */}
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => onEditTransaction && onEditTransaction(tx)}
+                  className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-indigo-600 transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
                 {isConfirming ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-slate-500">Confirm delete?</span>
+                    <span className="text-[11px] text-slate-500">Confirm?</span>
                     <button
                       type="button"
                       onClick={() => handleDelete(tx.id)}

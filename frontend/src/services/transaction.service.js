@@ -79,7 +79,7 @@ export const transactionService = {
     amount,
     transactionType,
     paymentMethod,
-    entrySource = 'RECEPT',
+    entrySource = 'MANUAL',
     merchant,
     notes,
     categoryId,

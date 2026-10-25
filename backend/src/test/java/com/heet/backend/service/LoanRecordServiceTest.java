@@ -1,15 +1,18 @@
 package com.heet.backend.service;
 
+import com.heet.backend.dto.request.AddLoanPrincipalRequest;
 import com.heet.backend.dto.request.CreateLoanRecordRequest;
 import com.heet.backend.dto.request.LoanPaymentRequest;
 import com.heet.backend.dto.request.UpdateLoanRecordRequest;
 import com.heet.backend.dto.response.LoanRecordResponse;
+import com.heet.backend.entity.LoanEvent;
 import com.heet.backend.entity.LoanRecord;
 import com.heet.backend.entity.User;
 import com.heet.backend.enums.LoanStatus;
 import com.heet.backend.enums.LoanType;
 import com.heet.backend.exception.InvalidLoanPaymentException;
 import com.heet.backend.exception.LoanRecordNotFoundException;
+import com.heet.backend.repository.LoanEventRepository;
 import com.heet.backend.repository.LoanRecordRepository;
 import com.heet.backend.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +48,9 @@ class LoanRecordServiceTest {
     @Mock
     private LoanRecordRepository loanRecordRepository;
 
+    @Mock
+    private LoanEventRepository loanEventRepository;
+
     @InjectMocks
     private LoanRecordService loanRecordService;
 
@@ -70,6 +76,7 @@ class LoanRecordServiceTest {
         sampleRecord.setPersonName("John Doe");
         sampleRecord.setDescription("Lunch loan");
         sampleRecord.setOriginalAmount(BigDecimal.valueOf(100.00));
+        sampleRecord.setAdditionalAmount(BigDecimal.ZERO);
         sampleRecord.setRemainingAmount(BigDecimal.valueOf(100.00));
         sampleRecord.setStatus(LoanStatus.ACTIVE);
         sampleRecord.setDueDate(LocalDate.of(2026, 12, 31));
@@ -214,5 +221,123 @@ class LoanRecordServiceTest {
         when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
 
         assertThrows(InvalidLoanPaymentException.class, () -> loanRecordService.recordPayment(10L, payment));
+    }
+
+    @Test
+    void updateLoanRecord_UpdateOriginalAmount_Success() {
+        // sampleRecord has original 100, remaining 100, repaid 0
+        UpdateLoanRecordRequest request = new UpdateLoanRecordRequest(
+                LoanType.LENT,
+                "John Doe",
+                "Updated loan",
+                LocalDate.of(2026, 12, 31),
+                BigDecimal.valueOf(150.00)
+        );
+
+        when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
+        when(loanRecordRepository.save(any(LoanRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        LoanRecordResponse response = loanRecordService.updateLoanRecord(10L, request);
+
+        assertNotNull(response);
+        assertEquals(BigDecimal.valueOf(150.00), response.getOriginalAmount());
+        assertEquals(BigDecimal.valueOf(150.00), response.getRemainingAmount());
+        assertEquals(BigDecimal.valueOf(150.00), response.getTotalPrincipal());
+        verify(loanEventRepository, times(1)).save(any(LoanEvent.class));
+    }
+
+    @Test
+    void updateLoanRecord_UpdateOriginalAmount_LessThanAlreadyRepaid_ThrowsException() {
+        // Suppose 60 already repaid: remaining is 40, original is 100
+        sampleRecord.setRemainingAmount(BigDecimal.valueOf(40.00));
+
+        UpdateLoanRecordRequest request = new UpdateLoanRecordRequest(
+                LoanType.LENT,
+                "John Doe",
+                "Updated loan",
+                LocalDate.of(2026, 12, 31),
+                BigDecimal.valueOf(50.00) // 50 < 60 repaid
+        );
+
+        when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
+
+        assertThrows(InvalidLoanPaymentException.class, () -> loanRecordService.updateLoanRecord(10L, request));
+    }
+
+    @Test
+    void addMoreMoney_ActiveLoan_Success() {
+        AddLoanPrincipalRequest request = new AddLoanPrincipalRequest(
+                BigDecimal.valueOf(50.00),
+                LocalDate.of(2026, 10, 25),
+                "Additional funds for lunch"
+        );
+
+        when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
+        when(loanRecordRepository.save(any(LoanRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        LoanRecordResponse response = loanRecordService.addMoreMoney(10L, request);
+
+        assertNotNull(response);
+        assertEquals(BigDecimal.valueOf(100.00), response.getOriginalAmount());
+        assertEquals(BigDecimal.valueOf(50.00), response.getAdditionalAmount());
+        assertEquals(BigDecimal.valueOf(150.00), response.getTotalPrincipal());
+        assertEquals(BigDecimal.valueOf(150.00), response.getRemainingAmount());
+        assertEquals(LoanStatus.ACTIVE, response.getStatus());
+        verify(loanEventRepository, times(1)).save(any(LoanEvent.class));
+    }
+
+    @Test
+    void addMoreMoney_SettledLoan_ReactivatesAndUpdatesBalances() {
+        sampleRecord.setStatus(LoanStatus.SETTLED);
+        sampleRecord.setRemainingAmount(BigDecimal.ZERO);
+
+        AddLoanPrincipalRequest request = new AddLoanPrincipalRequest(
+                BigDecimal.valueOf(75.00),
+                LocalDate.of(2026, 10, 25),
+                "Reopening loan with extra money"
+        );
+
+        when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
+        when(loanRecordRepository.save(any(LoanRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        LoanRecordResponse response = loanRecordService.addMoreMoney(10L, request);
+
+        assertNotNull(response);
+        assertEquals(LoanStatus.ACTIVE, response.getStatus());
+        assertEquals(BigDecimal.valueOf(75.00), response.getRemainingAmount());
+        assertEquals(BigDecimal.valueOf(75.00), response.getAdditionalAmount());
+        assertEquals(BigDecimal.valueOf(175.00), response.getTotalPrincipal());
+    }
+
+    @Test
+    void addMoreMoney_ZeroOrNegativeAmount_ThrowsException() {
+        AddLoanPrincipalRequest request = new AddLoanPrincipalRequest(
+                BigDecimal.ZERO,
+                LocalDate.of(2026, 10, 25),
+                "Invalid zero amount"
+        );
+
+        when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
+
+        assertThrows(InvalidLoanPaymentException.class, () -> loanRecordService.addMoreMoney(10L, request));
+    }
+
+    @Test
+    void recordPayment_WithNotesAndDate_Success() {
+        LoanPaymentRequest payment = new LoanPaymentRequest(
+                BigDecimal.valueOf(30.00),
+                LocalDate.of(2026, 10, 25),
+                "Part payment via UPI"
+        );
+
+        when(loanRecordRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(sampleRecord));
+        when(loanRecordRepository.save(any(LoanRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        LoanRecordResponse response = loanRecordService.recordPayment(10L, payment);
+
+        assertNotNull(response);
+        assertEquals(BigDecimal.valueOf(70.00), response.getRemainingAmount());
+        assertEquals(LoanStatus.ACTIVE, response.getStatus());
+        verify(loanEventRepository, times(1)).save(any(LoanEvent.class));
     }
 }

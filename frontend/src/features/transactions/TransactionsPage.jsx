@@ -32,6 +32,7 @@ export function TransactionsPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
 
   const isFiltered = Boolean(selectedType || selectedPaymentMethod || selectedSort !== 'transactionDate,desc');
 
@@ -104,8 +105,18 @@ export function TransactionsPage() {
     }
   };
 
-  const handleTransactionCreated = () => {
+  const handleTransactionSaved = () => {
     loadTransactions(true);
+  };
+
+  const handleOpenAddModal = () => {
+    setEditingTransaction(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditTransaction = (tx) => {
+    setEditingTransaction(tx);
+    setIsModalOpen(true);
   };
 
   return (
@@ -131,7 +142,7 @@ export function TransactionsPage() {
             <Button
               variant="primary"
               size="sm"
-              onClick={() => setIsModalOpen(true)}
+              onClick={handleOpenAddModal}
               leftIcon={<PlusCircle className="w-4 h-4" />}
             >
               Add Transaction
@@ -177,7 +188,7 @@ export function TransactionsPage() {
       ) : transactions.length === 0 ? (
         <TransactionsEmptyState
           isFiltered={isFiltered}
-          onAddTransaction={() => setIsModalOpen(true)}
+          onAddTransaction={handleOpenAddModal}
           onResetFilters={handleResetFilters}
         />
       ) : (
@@ -185,6 +196,7 @@ export function TransactionsPage() {
           <TransactionList
             transactions={transactions}
             onDeleteTransaction={handleDeleteTransaction}
+            onEditTransaction={handleEditTransaction}
           />
 
           <TransactionPagination
@@ -198,11 +210,15 @@ export function TransactionsPage() {
         </div>
       )}
 
-      {/* Add Transaction Modal */}
+      {/* Add / Edit Transaction Modal */}
       <AddTransactionModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleTransactionCreated}
+        transactionToEdit={editingTransaction}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        onSuccess={handleTransactionSaved}
       />
     </div>
   );

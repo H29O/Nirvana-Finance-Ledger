@@ -2,17 +2,32 @@
 .env
 .env.*
 .env.local
-!.env.example
+
+# Local Database & Storage
+backend/uploads/receipts/*/
+!backend/uploads/receipts/1/
+!backend/uploads/receipts/2/
+!backend/uploads/receipts/384/
+!backend/uploads/receipts/2161/
+
+# Build & Runtime
+backend/target/
+frontend/node_modules/
+frontend/dist/
 
 # Python
 ocr-service/venv/
 __pycache__/
 *.pyc
+*.pyo
 
-# Node
-node_modules/
-frontend/dist/
+# Logs & Temporary Files
+logs/
+backups/
+*.log
+*.tmp
 
-# OS
+# OS & Machine-specific
 .DS_Store
+._*
 Thumbs.db

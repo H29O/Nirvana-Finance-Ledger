@@ -34,15 +34,25 @@ public class PaddleOcrService implements OcrService {
     private final int timeoutMs;
     private final OcrDataExtractor ocrDataExtractor;
     private final RestClient restClient;
+    private final OcrProcessManager ocrProcessManager;
+
+    public PaddleOcrService(
+            String paddleOcrUrl,
+            int timeoutMs,
+            OcrDataExtractor ocrDataExtractor) {
+        this(paddleOcrUrl, timeoutMs, ocrDataExtractor, new OcrProcessManager(true, paddleOcrUrl, null, null, null, 30000));
+    }
 
     @Autowired
     public PaddleOcrService(
             @Value("${app.ocr.paddle.url:http://localhost:5005}") String paddleOcrUrl,
             @Value("${app.ocr.paddle.timeout-ms:30000}") int timeoutMs,
-            OcrDataExtractor ocrDataExtractor) {
+            OcrDataExtractor ocrDataExtractor,
+            @Autowired(required = false) OcrProcessManager ocrProcessManager) {
         this.paddleOcrUrl = (paddleOcrUrl != null && !paddleOcrUrl.isBlank()) ? paddleOcrUrl.trim() : "http://localhost:5005";
         this.timeoutMs = timeoutMs > 0 ? timeoutMs : 30000;
         this.ocrDataExtractor = ocrDataExtractor;
+        this.ocrProcessManager = ocrProcessManager;
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Math.min(timeoutMs, 5000));
@@ -65,6 +75,12 @@ public class PaddleOcrService implements OcrService {
 
         if (contentType != null && contentType.equalsIgnoreCase("application/pdf")) {
             return OcrResult.failure("PDF OCR is currently not supported. Please upload an image (JPEG/PNG) to perform OCR.");
+        }
+
+        // Ensure OCR process is running if auto-start is enabled and service is currently down
+        if (ocrProcessManager != null && ocrProcessManager.isEnabled() && !ocrProcessManager.isServiceReady()) {
+            log.info("PaddleOCR service is unreachable; attempting to ensure process is started...");
+            ocrProcessManager.ensureStarted();
         }
 
         try {
@@ -118,6 +134,9 @@ public class PaddleOcrService implements OcrService {
     }
 
     public boolean isServiceAvailable() {
+        if (ocrProcessManager != null && ocrProcessManager.isEnabled() && !ocrProcessManager.isServiceReady()) {
+            ocrProcessManager.ensureStarted();
+        }
         try {
             String res = restClient.get()
                     .uri("/health")

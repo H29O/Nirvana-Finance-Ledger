@@ -74,10 +74,16 @@ export function LoanFormModal({
       newErrors.personName = 'Person name is required';
     }
 
-    if (!isEditing) {
-      const amountNum = parseFloat(formData.originalAmount);
-      if (!formData.originalAmount || isNaN(amountNum) || amountNum <= 0) {
-        newErrors.originalAmount = 'Please enter a valid amount greater than ₹0';
+    const amountNum = parseFloat(formData.originalAmount);
+    if (!formData.originalAmount || isNaN(amountNum) || amountNum <= 0) {
+      newErrors.originalAmount = 'Please enter a valid amount greater than ₹0';
+    } else if (isEditing && editingRecord) {
+      const orig = Number(editingRecord.originalAmount || 0);
+      const add = Number(editingRecord.additionalAmount || 0);
+      const rem = Number(editingRecord.remainingAmount || 0);
+      const totalRepaid = Number(editingRecord.totalRepaid ?? Math.max(0, (orig + add) - rem));
+      if (amountNum + add < totalRepaid) {
+        newErrors.originalAmount = `New principal cannot be less than already repaid amount (₹${totalRepaid.toFixed(2)})`;
       }
     }
 
@@ -99,6 +105,7 @@ export function LoanFormModal({
           personName: formData.personName,
           description: formData.description,
           dueDate: formData.dueDate || null,
+          originalAmount: parseFloat(formData.originalAmount),
         });
       } else {
         await lendingService.createLoanRecord({
@@ -220,34 +227,25 @@ export function LoanFormModal({
             required
           />
 
-          {/* Original Amount (Only editable when creating) */}
-          {isEditing ? (
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-700 select-none">
-                Original Amount (Fixed)
-              </label>
-              <div className="py-2.5 px-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700">
-                ₹{Number(formData.originalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-[11px] text-slate-400">
-                To adjust balances, use the Record Payment action on the card.
-              </p>
-            </div>
-          ) : (
-            <Input
-              label="Original Amount (₹)"
-              name="originalAmount"
-              type="number"
-              step="any"
-              min="0.01"
-              placeholder="0.00"
-              value={formData.originalAmount}
-              onChange={handleChange}
-              error={errors.originalAmount}
-              leftIcon={<span className="text-sm font-bold text-slate-500">₹</span>}
-              required
-            />
-          )}
+          {/* Original Principal Amount */}
+          <Input
+            label={isEditing ? 'Original Principal (₹)' : 'Principal Amount (₹)'}
+            name="originalAmount"
+            type="number"
+            step="any"
+            min="0.01"
+            placeholder="0.00"
+            value={formData.originalAmount}
+            onChange={handleChange}
+            error={errors.originalAmount}
+            leftIcon={<span className="text-sm font-bold text-slate-500">₹</span>}
+            helperText={
+              isEditing
+                ? 'Correct the opening principal if needed. To add fresh funds, use "Add More Money".'
+                : undefined
+            }
+            required
+          />
 
           {/* Due Date (Optional) */}
           <Input
