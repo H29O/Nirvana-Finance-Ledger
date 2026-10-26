@@ -30,8 +30,6 @@ export function TransactionFilters({
           <option value="">All Types</option>
           <option value="EXPENSE">Expenses Only</option>
           <option value="INCOME">Income Only</option>
-          <option value="LENT">Lent</option>
-          <option value="BORROWED">Borrowed</option>
         </select>
 
         {/* Payment Method Filter */}
